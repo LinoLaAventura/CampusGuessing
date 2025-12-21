@@ -35,6 +35,7 @@ public class CommentController {
         return ResponseEntity.ok(ApiResponse.success("点赞成功", null));
     }
 
+    // 5.3 いいね取り消し
     @DeleteMapping("/comments/{commentId}/likes")
     public ResponseEntity<ApiResponse<Void>> unlikeComment(
             @PathVariable Long commentId,
@@ -42,5 +43,15 @@ public class CommentController {
         
         commentService.unlikeComment(commentId, request.getUserId());
         return ResponseEntity.ok(ApiResponse.success("取消点赞成功", null));
+    }
+
+    // 5.4 コメント削除 (★ここを追加しました！)
+    @DeleteMapping("/comments/{commentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteComment(
+            @PathVariable Long commentId,
+            @RequestBody CommentRequest request) {
+        
+        commentService.deleteComment(commentId, request.getUserId());
+        return ResponseEntity.ok(ApiResponse.success("评论删除成功", null));
     }
 }

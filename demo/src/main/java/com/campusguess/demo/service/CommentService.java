@@ -12,4 +12,7 @@ public interface CommentService {
 
     // いいね解除
     void unlikeComment(Long commentId, Long userId);
+
+    // 5.4 コメント削除 
+    void deleteComment(Long commentId, Long userId);
 }
