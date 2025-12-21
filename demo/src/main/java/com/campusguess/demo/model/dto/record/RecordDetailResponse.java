@@ -25,12 +25,16 @@ public class RecordDetailResponse {
         private Long userId;
         private String username;
         private Integer totalQuestionNum;
+        private String createdAt; // ISO string for record creation time
+        private String gameType;
 
-        public GameRecordBase(Long recordId, Long userId, String username, Integer totalQuestionNum) {
+        public GameRecordBase(Long recordId, Long userId, String username, Integer totalQuestionNum, String createdAt, String gameType) {
             this.recordId = recordId;
             this.userId = userId;
             this.username = username;
             this.totalQuestionNum = totalQuestionNum;
+            this.createdAt = createdAt;
+            this.gameType = gameType;
         }
     }
 

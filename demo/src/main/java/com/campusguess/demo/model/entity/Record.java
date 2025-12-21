@@ -30,6 +30,9 @@ public class Record {
     @Column(name = "point_after")
     private Integer pointAfter;
 
+    @Column(name = "game_type", length = 50)
+    private String gameType;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

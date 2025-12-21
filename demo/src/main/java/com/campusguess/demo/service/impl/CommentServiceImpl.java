@@ -102,6 +102,9 @@ public class CommentServiceImpl implements CommentService {
             throw new BusinessException(403, "只能删除自己的评论");
         }
 
+        // 先删除点赞记录，避免外键约束阻止评论删除
+        commentLikeRepository.deleteByComment_Id(commentId);
+
         commentRepository.delete(comment);
     }
 }

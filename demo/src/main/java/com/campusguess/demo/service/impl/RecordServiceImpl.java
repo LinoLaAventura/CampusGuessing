@@ -39,6 +39,10 @@ public class RecordServiceImpl implements RecordService {
             throw new BusinessException(400, "参数错误");
         }
 
+        if (request.getGameType() == null || request.getGameType().isBlank()) {
+            throw new BusinessException(400, "游戏类型不能为空");
+        }
+
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new BusinessException(400, "用户不存在"));
 
@@ -48,6 +52,7 @@ public class RecordServiceImpl implements RecordService {
         Record record = new Record();
         record.setUser(user);
         record.setTotalQuestionNum(totalNum);
+        record.setGameType(request.getGameType());
 
         List<RecordItem> items = new ArrayList<>();
         int earnPoints = 0;
@@ -105,7 +110,11 @@ public class RecordServiceImpl implements RecordService {
 
         List<RecordListItem> list = new ArrayList<>();
         for (Record r : records) {
-            list.add(new RecordListItem(r.getId(), r.getEarnPoints(), r.getCreatedAt().format(ISO)));
+            list.add(new RecordListItem(
+                    r.getId(),
+                    r.getEarnPoints(),
+                    r.getGameType(),
+                    r.getCreatedAt() != null ? r.getCreatedAt().format(ISO) : null));
         }
 
         return list;
@@ -145,7 +154,12 @@ public class RecordServiceImpl implements RecordService {
         }
 
         var gameBase = new RecordDetailResponse.GameRecordBase(
-                record.getId(), user.getId(), user.getUsername(), record.getTotalQuestionNum());
+            record.getId(),
+            user.getId(),
+            user.getUsername(),
+            record.getTotalQuestionNum(),
+            record.getCreatedAt() != null ? record.getCreatedAt().format(ISO) : null,
+            record.getGameType());
         var pc = new RecordDetailResponse.PointChange(
                 record.getEarnPoints(), record.getPointBefore(), record.getPointAfter());
 
