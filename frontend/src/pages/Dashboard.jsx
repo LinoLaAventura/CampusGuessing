@@ -325,8 +325,7 @@ const Dashboard = () => {
         // { label: '总积分', value: '0', icon: Trophy },
         { label: '游戏场次', value: String(records.length), icon: Clock },
         { label: '好友', value: friendCount, icon: Users, onClick: () => navigate('/friends') },
-        // { label: '胜场数', value: '0', icon: Map },
-        // { label: '胜场数', value: '0', icon: Map },
+        { label: '注册时长', value: userInfo.createdAt, icon: Map }
     ];
 
     return (

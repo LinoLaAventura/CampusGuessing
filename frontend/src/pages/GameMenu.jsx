@@ -8,7 +8,7 @@ const GameMenu = () => {
 
     const menuItems = [
         {
-            title: '开始匹配',
+            title: '好友对战',
             description: '普通模式，轻松对战',
             icon: Swords,
             color: 'from-blue-500 to-cyan-500',
