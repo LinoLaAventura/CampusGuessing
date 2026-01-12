@@ -1,13 +1,15 @@
 ## CampusGuessSystem – AI coding guide
 
 ### 技术栈与架构
-- **运行时**: Spring Boot 4.0.1, Java 17, Spring Data JPA + MySQL(Hikari连接池)
+- **后端运行时**: Spring Boot 4.0.1, Java 17, Spring Data JPA + MyBatis-Plus + MySQL(Hikari连接池)
+- **前端**: React (Dashboard组件位于 `frontend/src/pages/`)
 - **Web层**: Spring WebMVC + WebSocket (STOMP协议); 所有端点挂载在 `/api` 下 ([application.yml](demo/src/main/resources/application.yml#L3))
 - **分层架构**: `Controller → Service接口 → ServiceImpl → Repository → Entity`
   - DTO按领域模块分包: `model/dto/{domain}/` (auth, battle, comment, question, record, user, response)
   - 实体类: `model/entity/` 统一使用 `@PrePersist` 自动设置创建时间
 - **依赖注入**: ServiceImpl 使用 Lombok `@RequiredArgsConstructor` 构造器注入 + `@Transactional` 事务管理
 - **配置管理**: 敏感配置(如JWT密钥、图床token)统一在 [application.yml](demo/src/main/resources/application.yml) 管理
+  - ⚠️ **敏感信息**: `application.yml` 含数据库密码、JWT密钥、图床token (生产环境需迁移至环境变量)
 
 ### 响应与异常处理
 - **统一响应包装**: 所有Controller返回 `ResponseEntity<ApiResponse<T>>` ([ApiResponse.java](demo/src/main/java/com/campusguess/demo/model/dto/response/ApiResponse.java))
@@ -86,7 +88,7 @@
 # 启动开发服务器 (DevTools热重载, 监听8080端口)
 ./mvnw spring-boot:run
 
-# Windows环境使用
+# Windows环境使用 (推荐)
 mvnw.cmd spring-boot:run
 
 # 构建JAR包 (输出到 target/demo-0.0.1-SNAPSHOT.jar)
@@ -99,6 +101,12 @@ mvnw.cmd spring-boot:run
 # 示例: http://localhost:8080/api/questions
 #       ws://localhost:8080/api/ws-battle?username=alice
 ```
+
+**常见问题排查**:
+- **数据库连接失败**: 检查 `application.yml` 中 `spring.datasource.url`/`username`/`password` 是否正确
+- **端口占用**: 修改 `application.yml` 中 `server.port` 或停止占用8080端口的进程
+- **WebSocket握手失败**: 确认URL包含 `?username=xxx` 参数, 参考 [WebSocket接口对接文档.md](WebSocket接口对接文档.md)
+- **依赖下载慢**: 启用 `pom.xml` 中注释的阿里云镜像配置 (约第33-43行)
 
 ### 新功能开发清单
 1. **Entity** → `model/entity/`
@@ -121,6 +129,12 @@ mvnw.cmd spring-boot:run
 
 ### 调试提示
 - **WebSocket连接**: 查看浏览器控制台 `ws://localhost:8080/api/ws-battle` 握手日志
-- **数据库查询**: 启用 `spring.jpa.show-sql=true` 查看生成的SQL
+- **数据库查询**: 启用 `spring.jpa.show-sql=true` 查看生成的SQL (默认已启用)
 - **热重载**: DevTools监听类路径变化, 保存文件后自动重启 (配置不变时约2-3秒)
 - **测试HTML**: [static/battle-demo.html](demo/src/main/resources/static/battle-demo.html) 提供WebSocket对战测试页面
+  - 访问: `http://localhost:8080/api/battle-demo.html`
+  - 打开多个浏览器标签模拟多用户对战
+
+### 重要文档参考
+- [WebSocket接口对接文档.md](WebSocket接口对接文档.md): WebSocket连接/订阅/消息格式详解 (含前端示例代码)
+- [对战系统更新说明.md](对战系统更新说明.md): 对战记录存储机制 (BattleRoundRecord → Record/RecordItem 转换逻辑)

@@ -30,7 +30,7 @@ public class UserController {
                 user.getId(),
                 user.getUsername(),
                 user.getRole(),
-                user.getPhone(),
+                user.getCreatedAt(),
                 user.getPoints());
 
         return ResponseEntity.status(201).body(ApiResponse.created("注册成功", userInfo));
@@ -45,7 +45,7 @@ public class UserController {
                 user.getId(),
                 user.getUsername(),
                 user.getRole(),
-                user.getPhone(),
+                user.getCreatedAt(),
                 user.getPoints());
 
         return ResponseEntity.ok(ApiResponse.success("查询成功", userInfo));

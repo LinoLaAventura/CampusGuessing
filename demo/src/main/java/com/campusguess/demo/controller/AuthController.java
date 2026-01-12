@@ -41,7 +41,7 @@ public class AuthController {
                 user.getId(),
                 user.getUsername(),
                 user.getRole(),
-                user.getPhone(),
+                user.getCreatedAt(),
                 user.getPoints());
 
         // 构建响应
