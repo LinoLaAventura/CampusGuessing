@@ -52,4 +52,9 @@ public interface BattleService {
      * 保存对战结果到记录表
      */
     void saveBattleRecords(BattleRoom room);
+    
+    /**
+     * 结束对战并保存记录（用于玩家退出场景）
+     */
+    void finishBattleAndSaveRecords(String roomCode, String winner);
 }
