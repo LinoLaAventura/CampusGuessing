@@ -422,6 +422,16 @@ function renderQuestionDetailPanel({
     else if (detailError) detailContent = <div className="text-red-400">{detailError}</div>;
     else if (detail === null) detailContent = <div className="text-gray-500">暂无详情</div>;
     else {
+        const formatTime = (isoString) => {
+            if (!isoString) return '-';
+            const date = new Date(isoString);
+            const year = String(date.getFullYear()).slice(2);
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hour = String(date.getHours()).padStart(2, '0');
+            const minute = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hour}:${minute}`;
+        };
         const imageUrl = detail?.imageData?.links?.url;
         const coordText = detail?.correctCoord
             ? `${detail.correctCoord.lat ?? '-'}, ${detail.correctCoord.lon ?? '-'}`
@@ -447,8 +457,8 @@ function renderQuestionDetailPanel({
 
                 <div className="grid gap-2 text-sm">
                     <div className="text-gray-400"><span className="text-gray-500">作者：</span>{detail.authorUsername ?? '-'}</div>
-                    <div className="text-gray-400"><span className="text-gray-500">坐标：</span>{coordText}</div>
-                    <div className="text-gray-400"><span className="text-gray-500">创建时间：</span>{detail.createdAt ?? '-'}</div>
+                    {/* <div className="text-gray-400"><span className="text-gray-500">坐标：</span>{coordText}</div> */}
+                    <div className="text-gray-400"><span className="text-gray-500">创建时间：</span>{formatTime(detail.createdAt) ?? '-'}</div>
                 </div>
 
                 {detail.content ? (
@@ -460,7 +470,7 @@ function renderQuestionDetailPanel({
 
                 {detail.answer ? (
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                        <div className="text-gray-400 text-xs mb-2">答案</div>
+                        <div className="text-gray-400 text-xs mb-2">提示</div>
                         <div className="text-white whitespace-pre-wrap">{detail.answer}</div>
                     </div>
                 ) : null}
@@ -610,144 +620,144 @@ function renderCreateQuestionPanel({
     createLoading,
     onCreate,
 }) {
-    return (
-        <div className="glass-dark rounded-3xl p-6 lg:col-span-3">
-            <div className="flex items-center gap-3 mb-4">
-                <PlusCircle className="w-5 h-5 text-gray-400" />
-                <h2 className="text-xl font-bold">创建题目</h2>
-            </div>
+    // return (
+        // <div className="glass-dark rounded-3xl p-6 lg:col-span-3">
+        //     <div className="flex items-center gap-3 mb-4">
+        //         <PlusCircle className="w-5 h-5 text-gray-400" />
+        //         <h2 className="text-xl font-bold">创建题目</h2>
+        //     </div>
 
-            <div className="grid md:grid-cols-2 gap-3 mb-3">
-                <select
-                    value={createCampus}
-                    onChange={(e) => setCreateCampus(e.target.value)}
-                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-apple-orange transition-all"
-                >
-                    {CAMPUS_OPTIONS.filter((o) => o.value !== '').map((o) => (
-                        <option key={o.value} value={o.value} className="bg-gray-900">
-                            {o.label}
-                        </option>
-                    ))}
-                </select>
+        //     <div className="grid md:grid-cols-2 gap-3 mb-3">
+        //         <select
+        //             value={createCampus}
+        //             onChange={(e) => setCreateCampus(e.target.value)}
+        //             className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-apple-orange transition-all"
+        //         >
+        //             {CAMPUS_OPTIONS.filter((o) => o.value !== '').map((o) => (
+        //                 <option key={o.value} value={o.value} className="bg-gray-900">
+        //                     {o.label}
+        //                 </option>
+        //             ))}
+        //         </select>
 
-                <select
-                    value={createDifficulty}
-                    onChange={(e) => setCreateDifficulty(e.target.value)}
-                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-apple-orange transition-all"
-                >
-                    {DIFFICULTY_OPTIONS.filter((o) => o.value !== '').map((o) => (
-                        <option key={o.value} value={o.value} className="bg-gray-900">
-                            {o.label}
-                        </option>
-                    ))}
-                </select>
-            </div>
+        //         <select
+        //             value={createDifficulty}
+        //             onChange={(e) => setCreateDifficulty(e.target.value)}
+        //             className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-apple-orange transition-all"
+        //         >
+        //             {DIFFICULTY_OPTIONS.filter((o) => o.value !== '').map((o) => (
+        //                 <option key={o.value} value={o.value} className="bg-gray-900">
+        //                     {o.label}
+        //                 </option>
+        //             ))}
+        //         </select>
+        //     </div>
 
-            <div className="mb-3">
-                <button
-                    type="button"
-                    onClick={onOpenMapPicker}
-                    className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white flex items-center justify-center gap-2"
-                >
-                    <MapPin className="w-4 h-4" />
-                    {createCoord ? `已选位置：${createCoord.lat.toFixed(4)}, ${createCoord.lon.toFixed(4)}` : '在地图上选择正确位置（必填）'}
-                </button>
-            </div>
+        //     <div className="mb-3">
+        //         <button
+        //             type="button"
+        //             onClick={onOpenMapPicker}
+        //             className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white flex items-center justify-center gap-2"
+        //         >
+        //             <MapPin className="w-4 h-4" />
+        //             {createCoord ? `已选位置：${createCoord.lat.toFixed(4)}, ${createCoord.lon.toFixed(4)}` : '在地图上选择正确位置（必填）'}
+        //         </button>
+        //     </div>
 
-            <div className="mb-3">
-                <label className="w-full block">
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={onImageUpload}
-                        disabled={uploadingImage}
-                        className="hidden"
-                    />
-                    <div className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white flex items-center justify-center gap-2 cursor-pointer">
-                        {uploadingImage && (
-                            <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                                上传中...
-                            </>
-                        )}
-                        {!uploadingImage && uploadedImageKey && (
-                            <>
-                                <ImageIcon className="w-4 h-4 text-green-400" />
-                                已上传图片
-                            </>
-                        )}
-                        {!uploadingImage && !uploadedImageKey && (
-                            <>
-                                <Upload className="w-4 h-4" />
-                                上传题目图片（必填）
-                            </>
-                        )}
-                    </div>
-                </label>
-                {uploadedImageKey && (
-                    <div className="mt-2">
-                        <div className="text-xs text-gray-400 mb-2 truncate">图片Key: {uploadedImageKey}</div>
-                        {uploadedImageUrl && (
-                            <div className="w-full h-48 rounded-xl overflow-hidden border border-white/10 bg-black">
-                                <img 
-                                    src={uploadedImageUrl}
-                                    alt="题目图片预览" 
-                                    className="w-full h-full object-contain"
-                                    onError={(e) => {
-                                        console.error('图片加载失败:', uploadedImageUrl);
-                                        e.target.style.display = 'none';
-                                    }}
-                                />
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+        //     <div className="mb-3">
+        //         <label className="w-full block">
+        //             <input
+        //                 type="file"
+        //                 accept="image/*"
+        //                 onChange={onImageUpload}
+        //                 disabled={uploadingImage}
+        //                 className="hidden"
+        //             />
+        //             <div className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all text-white flex items-center justify-center gap-2 cursor-pointer">
+        //                 {uploadingImage && (
+        //                     <>
+        //                         <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+        //                         上传中...
+        //                     </>
+        //                 )}
+        //                 {!uploadingImage && uploadedImageKey && (
+        //                     <>
+        //                         <ImageIcon className="w-4 h-4 text-green-400" />
+        //                         已上传图片
+        //                     </>
+        //                 )}
+        //                 {!uploadingImage && !uploadedImageKey && (
+        //                     <>
+        //                         <Upload className="w-4 h-4" />
+        //                         上传题目图片（必填）
+        //                     </>
+        //                 )}
+        //             </div>
+        //         </label>
+        //         {uploadedImageKey && (
+        //             <div className="mt-2">
+        //                 <div className="text-xs text-gray-400 mb-2 truncate">图片Key: {uploadedImageKey}</div>
+        //                 {uploadedImageUrl && (
+        //                     <div className="w-full h-48 rounded-xl overflow-hidden border border-white/10 bg-black">
+        //                         <img 
+        //                             src={uploadedImageUrl}
+        //                             alt="题目图片预览" 
+        //                             className="w-full h-full object-contain"
+        //                             onError={(e) => {
+        //                                 console.error('图片加载失败:', uploadedImageUrl);
+        //                                 e.target.style.display = 'none';
+        //                             }}
+        //                         />
+        //                     </div>
+        //                 )}
+        //             </div>
+        //         )}
+        //     </div>
 
-            <div className="grid gap-3 mb-3">
-                <input
-                    type="text"
-                    value={createTitle}
-                    onChange={(e) => setCreateTitle(e.target.value)}
-                    placeholder="标题"
-                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-apple-orange transition-all"
-                />
-            </div>
+        //     <div className="grid gap-3 mb-3">
+        //         <input
+        //             type="text"
+        //             value={createTitle}
+        //             onChange={(e) => setCreateTitle(e.target.value)}
+        //             placeholder="标题"
+        //             className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-apple-orange transition-all"
+        //         />
+        //     </div>
 
-            <div className="grid gap-3 mb-3">
-                <textarea
-                    value={createContent}
-                    onChange={(e) => setCreateContent(e.target.value)}
-                    placeholder="题目内容（可选）"
-                    rows={3}
-                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-apple-orange transition-all resize-none"
-                />
-            </div>
+        //     <div className="grid gap-3 mb-3">
+        //         <textarea
+        //             value={createContent}
+        //             onChange={(e) => setCreateContent(e.target.value)}
+        //             placeholder="题目内容（可选）"
+        //             rows={3}
+        //             className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-apple-orange transition-all resize-none"
+        //         />
+        //     </div>
 
-            <div className="grid gap-3 mb-4">
-                <input
-                    type="text"
-                    value={createAnswer}
-                    onChange={(e) => setCreateAnswer(e.target.value)}
-                    placeholder="答案（可选）"
-                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-apple-orange transition-all"
-                />
-            </div>
+        //     <div className="grid gap-3 mb-4">
+        //         <input
+        //             type="text"
+        //             value={createAnswer}
+        //             onChange={(e) => setCreateAnswer(e.target.value)}
+        //             placeholder="答案（可选）"
+        //             className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-apple-orange transition-all"
+        //         />
+        //     </div>
 
-            <button
-                type="button"
-                onClick={onCreate}
-                disabled={createLoading}
-                className="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:hover:shadow-none"
-            >
-                {createLoading ? '创建中...' : '创建题目'}
-            </button>
+        //     <button
+        //         type="button"
+        //         onClick={onCreate}
+        //         disabled={createLoading}
+        //         className="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:hover:shadow-none"
+        //     >
+        //         {createLoading ? '创建中...' : '创建题目'}
+        //     </button>
 
-            <div className="text-gray-500 text-xs mt-3">
-                提示：地图选点和图片上传为必填项；图片将上传到 PICUI 图床。请先在代码中配置 Bearer Token。
-            </div>
-        </div>
-    );
+        //     <div className="text-gray-500 text-xs mt-3">
+        //         提示：地图选点和图片上传为必填项；图片将上传到 PICUI 图床。请先在代码中配置 Bearer Token。
+        //     </div>
+        // </div>
+    // );
 }
 
 const SoloMode = () => {

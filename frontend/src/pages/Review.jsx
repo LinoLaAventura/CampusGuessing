@@ -173,9 +173,17 @@ const Review = () => {
   }, [correctCoord, userCoord]);
 
   return (
-    <div className="min-h-screen bg-black text-white pt-20 pb-12 px-6">
+    <div className="min-h-screen text-white pt-20 pb-12 px-6 relative overflow-hidden">
+      
+      <div className="absolute inset-0 bg-gradient-to-b from-black via-gray-900 to-black -z-10" />
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 opacity-30">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
+      </div>
+
+     {/* <div className="min-h-screen bg-black text-white pt-20 pb-12 px-6"> */}
       <div className="max-w-4xl mx-auto relative">
-        <div className="absolute top-4 left-4 z-50">
+        <div className="absolute top-4 left-4 z-50"> 
           {/* <button type="button" onClick={handleBack} className="p-2 rounded-full glass-dark">
             <ChevronLeft className="w-6 h-6 text-gray-300" />
           </button> */}
