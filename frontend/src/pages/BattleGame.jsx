@@ -74,14 +74,17 @@ const BattleGame = () => {
 
   const tileLayer = useMemo(
     () => ({
-      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      // 与单人模式保持一致：高德路网图（style=8 更快），缓存友好
+      url: 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',
+      attribution: '&copy; <a href="https://www.amap.com/">高德地图</a>',
+      subdomains: ['1', '2', '3', '4'],
       maxZoom: 18,
     }),
     []
   );
 
-  const mapCenter = useMemo(() => [22.255, 113.541], []);
+  // 与单人模式一致：中山大学珠海校区附近
+  const mapCenter = useMemo(() => [22.3477, 113.5894], []);
 
   const lastHandledIdRef = useRef(0);
 
@@ -345,7 +348,12 @@ const BattleGame = () => {
             maxZoom={tileLayer.maxZoom}
             minZoom={12}
           >
-            <TileLayer attribution={tileLayer.attribution} url={tileLayer.url} maxZoom={tileLayer.maxZoom} />
+            <TileLayer
+              attribution={tileLayer.attribution}
+              url={tileLayer.url}
+              subdomains={tileLayer.subdomains}
+              maxZoom={tileLayer.maxZoom}
+            />
             <MapClickHandler />
             {guessPosition ? <Marker position={guessPosition} /> : null}
           </MapContainer>
