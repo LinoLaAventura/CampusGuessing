@@ -14,6 +14,7 @@ const Login = () => {
         password: '',
     });
     const [submitting, setSubmitting] = useState(false);
+    const [formError, setFormError] = useState('');
 
     let submitText;
     if (submitting) submitText = '提交中...';
@@ -23,24 +24,40 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.username || !formData.password) return;
-
+        setFormError('');
         try {
             setSubmitting(true);
 
             if (activeTab === 'register') {
-                await registerUser({
-                    username: formData.username,
-                    password: formData.password,
-                    role: 'user',
-                });
+                try {
+                    await registerUser({
+                        username: formData.username,
+                        password: formData.password,
+                        role: 'user',
+                    });
+                } catch (err) {
+                    const msg = err?.message || '注册失败';
+                    // Detect duplicate/exists messages and show concise提示
+                    if (/已存在|exists|duplicate|重复/.test(msg)) {
+                        setFormError('不可注册：用户名已存在');
+                    } else {
+                        setFormError(msg);
+                    }
+                    setSubmitting(false);
+                    return;
+                }
             }
 
-            const auth = await login({
-                username: formData.username,
-                password: formData.password,
-            });
-            setAuth(auth);
-            navigate('/dashboard');
+            try {
+                const auth = await login({
+                    username: formData.username,
+                    password: formData.password,
+                });
+                setAuth(auth);
+                navigate('/dashboard');
+            } catch (err) {
+                setFormError(err?.message || '登录失败');
+            }
         } finally {
             setSubmitting(false);
         }
@@ -74,7 +91,7 @@ const Login = () => {
                     {/* Tab Switcher */}
                     <div className="flex gap-4 mb-8">
                         <button
-                            onClick={() => setActiveTab('login')}
+                            onClick={() => { setActiveTab('login'); setFormError(''); }}
                             className={`flex-1 py-2 text-sm font-medium transition-all rounded-lg ${activeTab === 'login'
                                 ? 'text-apple-orange border-b-2 border-apple-orange'
                                 : 'text-gray-500 hover:text-gray-300'
@@ -83,7 +100,7 @@ const Login = () => {
                             账号登录
                         </button>
                         <button
-                            onClick={() => setActiveTab('register')}
+                            onClick={() => { setActiveTab('register'); setFormError(''); }}
                             className={`flex-1 py-2 text-sm font-medium transition-all rounded-lg ${activeTab === 'register'
                                 ? 'text-apple-orange border-b-2 border-apple-orange'
                                 : 'text-gray-500 hover:text-gray-300'
@@ -92,6 +109,12 @@ const Login = () => {
                             账号注册
                         </button>
                     </div>
+
+                    {formError ? (
+                        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
+                            {formError}
+                        </div>
+                    ) : null}
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-5">

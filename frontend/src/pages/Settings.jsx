@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, LogOut, Moon, ChevronLeft, Save, Sun } from 'lucide-react';
-import { getCurrentUserInfo, getDisplayName, setDisplayName } from '../api/authStorage';
+import { getCurrentUserInfo, getDisplayName } from '../api/authStorage';
 
 const Settings = () => {
     const navigate = useNavigate();
@@ -12,7 +12,7 @@ const Settings = () => {
         return savedMode === null ? true : savedMode === 'true';
     });
     const userInfo = getCurrentUserInfo();
-    const [nickname, setNickname] = useState(() => getDisplayName() || userInfo?.username || '');
+    const nickname = getDisplayName() || userInfo?.username || '';
 
     // Apply dark/light mode effect
     useEffect(() => {
@@ -25,8 +25,7 @@ const Settings = () => {
     }, [darkMode]);
 
     const handleSave = () => {
-        // 仅前端保存昵称（displayName），不影响后端 username
-        setDisplayName(nickname);
+        // darkMode 已在 useEffect 中持久化到 localStorage，昵称为只读展示
         alert('设置已保存！');
         navigate(-1); // Go back
     };
@@ -35,7 +34,7 @@ const Settings = () => {
         <div className="min-h-screen pt-24 pb-12 px-6 transition-colors duration-300">
             <div className="max-w-2xl mx-auto">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
+                {/* <div className="flex items-center gap-4 mb-8">
                     <button
                         onClick={() => navigate(-1)}
                         className="p-2 rounded-full glass-dark hover:bg-white/20 transition-all"
@@ -43,7 +42,7 @@ const Settings = () => {
                         <ChevronLeft className="w-6 h-6 text-white" />
                     </button>
                     <h1 className="text-2xl font-bold text-white">个人设置</h1>
-                </div>
+                </div> */}
 
                 <div className="space-y-6">
                     {/* Profile Section */}
@@ -64,19 +63,13 @@ const Settings = () => {
                                 </div>
                             </div>
                             <div className="flex-1">
-                                <div className="mb-3">
+                                <div>
                                     <div className="text-xs text-gray-500 block mb-1">昵称</div>
-                                    <input
-                                        id="nickname"
-                                        type="text"
-                                        value={nickname}
-                                        onChange={(e) => setNickname(e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-apple-orange transition-colors"
-                                    />
+                                    <div className="text-m text-gray-400">{nickname}</div>
                                 </div>
                                 <div>
                                     <div className="text-xs text-gray-500 block mb-1">UID</div>
-                                    <div className="text-sm text-gray-400">{userInfo?.userId ?? '-'}</div>
+                                    <div className="text-m text-gray-400">{userInfo?.userId ?? '-'}</div>
                                 </div>
                             </div>
                         </div>

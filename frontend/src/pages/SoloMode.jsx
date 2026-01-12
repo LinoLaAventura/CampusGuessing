@@ -227,7 +227,7 @@ async function loadQuestionList({
         setTotal(resp?.total || 0);
         setList(resp?.list || []);
     } catch (e) {
-        setListError(cleanErrorMessage(e?.message) || '题目列表加载失败');
+        setListError(cleanErrorMessage('题目列表加载失败'));
     } finally {
         setListLoading(false);
     }
@@ -249,7 +249,7 @@ async function loadQuestionDetail({
         const resp = await getQuestionDetail(questionId);
         setDetail(resp);
     } catch (e) {
-        setDetailError(cleanErrorMessage(e?.message) || '题目详情加载失败');
+        setDetailError(cleanErrorMessage('题目详情加载失败'));
     } finally {
         setDetailLoading(false);
     }
@@ -303,7 +303,7 @@ async function submitCreateQuestion({
         clearForm();
         await onCreated();
     } catch (e) {
-        setActionErr(cleanErrorMessage(e?.message) || '题目创建失败');
+        setActionErr(cleanErrorMessage('题目创建失败'));
     } finally {
         setCreateLoading(false);
     }
@@ -899,7 +899,7 @@ const SoloMode = () => {
             setActionMsg('图片上传成功！');
         } catch (error) {
             console.error('图片上传失败:', error);
-            setActionErr(cleanErrorMessage(error.message) || '图片上传失败');
+            setActionErr('图片上传失败');
             setUploadedImageKey(''); // 失败时清空Key
             setUploadedImageUrl(''); // 失败时清空URL
         } finally {
@@ -947,7 +947,8 @@ const SoloMode = () => {
             }
         } catch (error) {
             console.error('Delete failed:', error);
-            setActionErr(cleanErrorMessage(error.message) || '删除题目失败');
+            setActionErr('删除题目失败');
+            window.location.reload();
         }
     };
 
@@ -1022,8 +1023,12 @@ const SoloMode = () => {
             });
 
             setActionMsg('评论发布成功！');
-            setCommentContent(''); 
+            setCommentContent('');
             loadComments(selectedId);
+
+            // Reload the whole page to ensure latest state across the app
+            // (intended behavior: 页面重新加载以刷新所有相关视图)
+            // window.location.reload();
         } catch (error) {
             console.error('Comment failed:', error);
         } finally {
@@ -1062,12 +1067,15 @@ const SoloMode = () => {
             await deleteComment(commentId, userProfile.userId);
 
             setActionMsg('评论删除成功');
-            // 刷新列表
-            await loadComments(selectedId);
+            // 清空输入框
+            setCommentContent('');
+
+            // 直接刷新整页以确保视图一致
+            window.location.reload();
             
         } catch (e) {
             console.error("删除失败", e);
-            setActionErr(cleanErrorMessage(e.message) || '删除评论失败');
+            // setActionErr('删除评论失败');
         }
     };
 

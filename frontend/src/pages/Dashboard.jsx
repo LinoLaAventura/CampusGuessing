@@ -166,6 +166,7 @@ const Dashboard = () => {
     const [friendCount, setFriendCount] = useState('0');
     const [records, setRecords] = useState([]);
     const userInfo = getCurrentUserInfo();
+    console.log("当前用户信息:", userInfo);
     const displayName = getDisplayName() || userInfo?.username || '';
     const userId = userInfo?.userId;
 

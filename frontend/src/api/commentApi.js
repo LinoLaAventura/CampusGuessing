@@ -14,9 +14,10 @@ export function createComment(questionId, { userId, content }) {
         content: content
     };
 
-    return unwrapApiResponse(
-        apiClient.post(`/questions/${questionId}/comments`, payload)
-    );
+    return (async () => {
+        const response = await apiClient.post(`/questions/${questionId}/comments`, payload);
+        return unwrapApiResponse(response.data);
+    })();
 }
 
 /**
@@ -37,11 +38,12 @@ export async function getCommentList(questionId) {
  */
 export function deleteComment(commentId, userId) {
     console.log(`删除评论请求 - commentId: ${commentId}, userId: ${userId}`);
-    return unwrapApiResponse(
-        apiClient.delete(`/comments/${commentId}`, {
+    return (async () => {
+        const response = await apiClient.delete(`/comments/${commentId}`, {
             data: { userId: Number(userId) } // axios delete 的 body 需要放在 data 字段里
-        })
-    );
+        });
+        return unwrapApiResponse(response.data);
+    })();
 }
 
 /**
