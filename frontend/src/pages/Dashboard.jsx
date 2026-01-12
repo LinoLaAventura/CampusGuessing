@@ -202,6 +202,34 @@ const Dashboard = () => {
         return `${year}-${month}-${day} ${hour}:${minute}`;
     };
 
+    function formatRegisteredDuration(isoString) {
+        if (!isoString) return '-';
+        const created = new Date(isoString);
+        const now = new Date();
+
+        if (isNaN(created.getTime())) return '-';
+
+        let totalMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+        let dayDiff = now.getDate() - created.getDate();
+
+        if (dayDiff < 0) {
+            const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+            dayDiff += prevMonthLastDay;
+            totalMonths -= 1;
+        }
+
+        const years = Math.floor(totalMonths / 12);
+        const months = totalMonths % 12;
+        const days = dayDiff;
+
+        const parts = [];
+        if (years > 0) parts.push(`${years}年`);
+        if (months > 0) parts.push(`${months}月`);
+        if (days > 0) parts.push(`${days}天`);
+        if (parts.length === 0) return '0天';
+        return parts.join('');
+    }
+
     const handleRecordClick = (record) => {
         if (!userId) {
             navigate('/login');
@@ -326,7 +354,7 @@ const Dashboard = () => {
         // { label: '总积分', value: '0', icon: Trophy },
         { label: '游戏场次', value: String(records.length), icon: Clock },
         { label: '好友', value: friendCount, icon: Users, onClick: () => navigate('/friends') },
-        { label: '注册时长', value: userInfo.createdAt, icon: Map }
+        { label: '注册时长', value: formatRegisteredDuration(userInfo.createdAt), icon: Map }
     ];
 
     return (
