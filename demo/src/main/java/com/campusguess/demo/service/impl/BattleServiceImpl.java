@@ -5,6 +5,8 @@ import com.campusguess.demo.model.dto.battle.BattleStateMessage;
 import com.campusguess.demo.model.entity.*;
 import com.campusguess.demo.repository.*;
 import com.campusguess.demo.service.BattleService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,10 +26,10 @@ public class BattleServiceImpl implements BattleService {
 
     private final BattleRoomRepository battleRoomRepository;
     private final QuestionRepository questionRepository;
-    private final BattleRoundRecordRepository battleRoundRecordRepository;
     private final RecordRepository recordRepository;
     private final RecordItemRepository recordItemRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper;
 
     @Override
     public BattleRoom createInvite(String fromUsername, String toUsername) {
@@ -167,9 +169,8 @@ public class BattleServiceImpl implements BattleService {
                 damage = 0;
             }
 
-            // 保存回合记录
+            // 保存回合记录到内存（临时对象）
             BattleRoundRecord roundRecord = new BattleRoundRecord();
-            roundRecord.setBattleRoom(room);
             roundRecord.setRoundNumber(room.getCurrentRound());
             roundRecord.setQuestionId(room.getCurrentQuestionId());
             roundRecord.setPlayerALon(lonA);
@@ -183,24 +184,30 @@ public class BattleServiceImpl implements BattleService {
             roundRecord.setPlayerAHealthAfter(room.getPlayerAHealth());
             roundRecord.setPlayerBHealthAfter(room.getPlayerBHealth());
             
-            battleRoundRecordRepository.save(roundRecord);
+            // 将回合记录追加到JSON字符串
+            saveRoundRecordToJson(room, roundRecord);
             
             // 检查是否有玩家血量归零
             if (room.getPlayerAHealth() <= 0) {
                 room.setStatus(BattleRoom.BattleStatus.FINISHED);
                 room.setWinner(room.getPlayerB());
                 room.setFinishedAt(LocalDateTime.now());
+                // 先保存房间状态（包含JSON）
+                battleRoomRepository.save(room);
                 // 保存对战记录到Record表
                 saveBattleToRecords(room);
             } else if (room.getPlayerBHealth() <= 0) {
                 room.setStatus(BattleRoom.BattleStatus.FINISHED);
                 room.setWinner(room.getPlayerA());
                 room.setFinishedAt(LocalDateTime.now());
+                // 先保存房间状态（包含JSON）
+                battleRoomRepository.save(room);
                 // 保存对战记录到Record表
                 saveBattleToRecords(room);
+            } else {
+                // 正常情况下也保存房间
+                battleRoomRepository.save(room);
             }
-
-            battleRoomRepository.save(room);
 
             return BattleStateMessage.RoundResult.builder()
                     .playerADistance(distanceA)
@@ -248,6 +255,22 @@ public class BattleServiceImpl implements BattleService {
     
     @Override
     public void saveBattleRecords(BattleRoom room) {
+        saveBattleToRecords(room);
+    }
+    
+    @Override
+    public void finishBattleAndSaveRecords(String roomCode, String winner) {
+        log.info("结束对战并保存记录: 房间={}, 获胜者={}", roomCode, winner);
+        
+        BattleRoom room = getRoomByCode(roomCode);
+        room.setStatus(BattleRoom.BattleStatus.FINISHED);
+        room.setWinner(winner);
+        room.setFinishedAt(LocalDateTime.now());
+        
+        // 先保存房间状态
+        battleRoomRepository.save(room);
+        
+        // 保存对战记录
         saveBattleToRecords(room);
     }
 
@@ -311,34 +334,79 @@ public class BattleServiceImpl implements BattleService {
     }
     
     /**
+     * 将回合记录保存到JSON字符串
+     */
+    private void saveRoundRecordToJson(BattleRoom room, BattleRoundRecord roundRecord) {
+        try {
+            List<BattleRoundRecord> records = getRoundRecordsFromJson(room);
+            records.add(roundRecord);
+            String json = objectMapper.writeValueAsString(records);
+            room.setRoundHistoryJson(json);
+            log.info("回合记录已追加到JSON: 房间={}, 当前回合数={}, JSON长度={}", 
+                    room.getRoomCode(), records.size(), json.length());
+        } catch (Exception e) {
+            log.error("保存回合记录到JSON失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 从JSON字符串读取回合记录
+     */
+    private List<BattleRoundRecord> getRoundRecordsFromJson(BattleRoom room) {
+        try {
+            if (room.getRoundHistoryJson() == null || room.getRoundHistoryJson().isEmpty()) {
+                return new ArrayList<>();
+            }
+            return objectMapper.readValue(room.getRoundHistoryJson(), 
+                    new TypeReference<List<BattleRoundRecord>>() {});
+        } catch (Exception e) {
+            log.error("从JSON读取回合记录失败: {}", e.getMessage(), e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
      * 保存对战记录到Record表
      * 为双方玩家各创建一条Record记录
      */
     private void saveBattleToRecords(BattleRoom room) {
         try {
-            // 获取所有回合记录
-            List<BattleRoundRecord> roundRecords = battleRoundRecordRepository
-                    .findByBattleRoomIdOrderByRoundNumberAsc(room.getId());
+            log.info("开始保存对战记录: 房间={}, 玩家A={}, 玩家B={}", 
+                    room.getRoomCode(), room.getPlayerA(), room.getPlayerB());
+            
+            // 从JSON获取所有回合记录
+            List<BattleRoundRecord> roundRecords = getRoundRecordsFromJson(room);
+            
+            log.info("从JSON读取到 {} 条回合记录", roundRecords.size());
             
             if (roundRecords.isEmpty()) {
                 log.warn("对战房间 {} 没有回合记录，无法保存", room.getRoomCode());
                 return;
             }
             
-            // 获取玩家
-            User playerA = userRepository.findByUsername(room.getPlayerA())
-                    .orElseThrow(() -> new BusinessException(404, "玩家A不存在"));
-            User playerB = userRepository.findByUsername(room.getPlayerB())
-                    .orElseThrow(() -> new BusinessException(404, "玩家B不存在"));
+            // 获取玩家（如果用户不存在则跳过保存）
+            java.util.Optional<User> playerAOpt = userRepository.findByUsername(room.getPlayerA());
+            java.util.Optional<User> playerBOpt = userRepository.findByUsername(room.getPlayerB());
             
-            // 为玩家A创建记录
-            savePlayerBattleRecord(playerA, room, roundRecords, true);
+            if (playerAOpt.isEmpty()) {
+                log.warn("玩家A ({}) 在数据库中不存在，跳过保存其对战记录", room.getPlayerA());
+            } else {
+                savePlayerBattleRecord(playerAOpt.get(), room, roundRecords, true);
+                log.info("玩家A ({}) 记录已保存", room.getPlayerA());
+            }
             
-            // 为玩家B创建记录
-            savePlayerBattleRecord(playerB, room, roundRecords, false);
+            if (playerBOpt.isEmpty()) {
+                log.warn("玩家B ({}) 在数据库中不存在，跳过保存其对战记录", room.getPlayerB());
+            } else {
+                savePlayerBattleRecord(playerBOpt.get(), room, roundRecords, false);
+                log.info("玩家B ({}) 记录已保存", room.getPlayerB());
+            }
             
-            log.info("对战记录已保存: 房间={}, 玩家A={}, 玩家B={}", 
-                    room.getRoomCode(), room.getPlayerA(), room.getPlayerB());
+            if (playerAOpt.isPresent() || playerBOpt.isPresent()) {
+                log.info("对战记录保存完成: 房间={}", room.getRoomCode());
+            } else {
+                log.warn("双方玩家都不存在于数据库中，对战记录未保存");
+            }
             
         } catch (Exception e) {
             log.error("保存对战记录失败: {}", e.getMessage(), e);
@@ -351,6 +419,8 @@ public class BattleServiceImpl implements BattleService {
      */
     private void savePlayerBattleRecord(User player, BattleRoom room, 
                                        List<BattleRoundRecord> roundRecords, boolean isPlayerA) {
+        log.info("开始保存玩家 {} 的对战记录，回合数: {}", player.getUsername(), roundRecords.size());
+        
         // 创建Record
         com.campusguess.demo.model.entity.Record record = new com.campusguess.demo.model.entity.Record();
         record.setUser(player);
@@ -364,6 +434,7 @@ public class BattleServiceImpl implements BattleService {
         record.setPointAfter(pointsBefore);
         
         com.campusguess.demo.model.entity.Record savedRecord = recordRepository.save(record);
+        log.info("Record保存成功，ID: {}", savedRecord.getId());
         
         // 创建RecordItem列表
         List<RecordItem> items = new ArrayList<>();
@@ -394,5 +465,6 @@ public class BattleServiceImpl implements BattleService {
         }
         
         recordItemRepository.saveAll(items);
+        log.info("RecordItems保存成功，数量: {}", items.size());
     }
 }

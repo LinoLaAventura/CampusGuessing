@@ -252,14 +252,9 @@ public class BattleWebSocketController {
             onlineUserService.leaveBattle(room.getPlayerA());
             onlineUserService.leaveBattle(room.getPlayerB());
             
-            // 设置房间状态为结束，退出者判负
-            room.setStatus(BattleRoom.BattleStatus.FINISHED);
-            room.setWinner(opponentUsername);
-            room.setFinishedAt(java.time.LocalDateTime.now());
-            battleRoomRepository.save(room);
-            
-            // 保存对战记录
-            battleService.saveBattleRecords(room);
+            // 设置房间状态为结束，退出者判负，并保存对战记录
+            // 使用Service层方法统一处理，确保事务一致性
+            battleService.finishBattleAndSaveRecords(roomCode, opponentUsername);
             
             // 通知退出者
             BattleStateMessage quitMsg = BattleStateMessage.builder()
