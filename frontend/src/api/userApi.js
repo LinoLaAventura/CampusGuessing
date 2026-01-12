@@ -47,14 +47,3 @@ export async function getUserRecords(userId) {
   const resp = await apiClient.get(`/users/${userId}/records`);
   return unwrapApiResponse(resp.data);
 }
-
-/**
- * GET /users/{userId}/records/{recordId}
- * 获取单个对战/练习记录的详情
- * @param {string|number} userId
- * @param {string|number} recordId
- */
-export async function getUserRecordDetail(userId, recordId) {
-  const resp = await apiClient.get(`/users/${userId}/records/${recordId}`);
-  return unwrapApiResponse(resp.data);
-}

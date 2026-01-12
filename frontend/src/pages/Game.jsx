@@ -24,6 +24,7 @@ function formatMeters(meters) {
     return `${Math.round(meters)} m`;
 }
 
+// 与后端 RecordServiceImpl 的计分方式保持一致：max 50，半径 10km 线性衰减
 function calculateDistanceAndScore(correct, guess) {
     if (correct?.lat == null || correct?.lon == null) {
         return { meters: Number.NaN, score: 0 };
@@ -283,6 +284,9 @@ function renderMapOverlay({
     );
 }
 
+// -----------------------------------------------------------------------------
+// 修改点：重构结果弹窗，实现“继续下一题”->“结束”的逻辑，并移除“返回”按钮
+// -----------------------------------------------------------------------------
 function renderResultOverlay({ isSolo, showResult, result, hasNext, onNext, onFinish }) {
     if (!isSolo || !showResult) return null;
     return (
@@ -391,7 +395,7 @@ const Game = () => {
     const mapCenter = useMemo(() => {
         if (isSolo && correctLatLng) return [correctLatLng.lat, correctLatLng.lng];
         // Default center: SYSU Zhuhai Campus approximate location (fallback)
-        return [22.351484, 113.583680];
+        return [22.255, 113.541];
     }, [correctLatLng, isSolo]);
 
     const mapZoom = useMemo(() => {

@@ -10,7 +10,7 @@ import GameMenu from './pages/GameMenu';
 import Matchmaking from './pages/Matchmaking';
 import Game from './pages/Game';
 import SoloMode from './pages/SoloMode';
-import Review from './pages/Review';
+import BattleGame from './pages/BattleGame';
 
 function App() {
   return (
@@ -28,7 +28,7 @@ function App() {
           <Route path="solo" element={<SoloMode />} />
           <Route path="matchmaking" element={<Matchmaking />} />
           <Route path="game" element={<Game />} />
-          <Route path="review" element={<Review />} />
+          <Route path="battle/:roomCode" element={<BattleGame />} />
         </Route>
       </Routes>
     </Router>
