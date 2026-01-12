@@ -2,6 +2,8 @@ server:
   port: 8080
   servlet:
     context-path: /api
+  # 允许局域网访问 (0.0.0.0 监听所有网络接口)
+  address: 0.0.0.0
 
 spring:
   datasource:
