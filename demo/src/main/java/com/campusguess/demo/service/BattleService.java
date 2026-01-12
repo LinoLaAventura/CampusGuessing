@@ -47,4 +47,9 @@ public interface BattleService {
      * 检查游戏是否结束
      */
     boolean isGameOver(BattleRoom room);
+    
+    /**
+     * 保存对战结果到记录表
+     */
+    void saveBattleRecords(BattleRoom room);
 }

@@ -2,10 +2,8 @@ package com.campusguess.demo.service.impl;
 
 import com.campusguess.demo.exception.BusinessException;
 import com.campusguess.demo.model.dto.battle.BattleStateMessage;
-import com.campusguess.demo.model.entity.BattleRoom;
-import com.campusguess.demo.model.entity.Question;
-import com.campusguess.demo.repository.BattleRoomRepository;
-import com.campusguess.demo.repository.QuestionRepository;
+import com.campusguess.demo.model.entity.*;
+import com.campusguess.demo.repository.*;
 import com.campusguess.demo.service.BattleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +24,10 @@ public class BattleServiceImpl implements BattleService {
 
     private final BattleRoomRepository battleRoomRepository;
     private final QuestionRepository questionRepository;
+    private final BattleRoundRecordRepository battleRoundRecordRepository;
+    private final RecordRepository recordRepository;
+    private final RecordItemRepository recordItemRepository;
+    private final UserRepository userRepository;
 
     @Override
     public BattleRoom createInvite(String fromUsername, String toUsername) {
@@ -165,15 +167,37 @@ public class BattleServiceImpl implements BattleService {
                 damage = 0;
             }
 
+            // 保存回合记录
+            BattleRoundRecord roundRecord = new BattleRoundRecord();
+            roundRecord.setBattleRoom(room);
+            roundRecord.setRoundNumber(room.getCurrentRound());
+            roundRecord.setQuestionId(room.getCurrentQuestionId());
+            roundRecord.setPlayerALon(lonA);
+            roundRecord.setPlayerALat(latA);
+            roundRecord.setPlayerBLon(lonB);
+            roundRecord.setPlayerBLat(latB);
+            roundRecord.setPlayerADistance(distanceA);
+            roundRecord.setPlayerBDistance(distanceB);
+            roundRecord.setDamagedPlayer(damagedPlayer);
+            roundRecord.setDamage(damage);
+            roundRecord.setPlayerAHealthAfter(room.getPlayerAHealth());
+            roundRecord.setPlayerBHealthAfter(room.getPlayerBHealth());
+            
+            battleRoundRecordRepository.save(roundRecord);
+            
             // 检查是否有玩家血量归零
             if (room.getPlayerAHealth() <= 0) {
                 room.setStatus(BattleRoom.BattleStatus.FINISHED);
                 room.setWinner(room.getPlayerB());
                 room.setFinishedAt(LocalDateTime.now());
+                // 保存对战记录到Record表
+                saveBattleToRecords(room);
             } else if (room.getPlayerBHealth() <= 0) {
                 room.setStatus(BattleRoom.BattleStatus.FINISHED);
                 room.setWinner(room.getPlayerA());
                 room.setFinishedAt(LocalDateTime.now());
+                // 保存对战记录到Record表
+                saveBattleToRecords(room);
             }
 
             battleRoomRepository.save(room);
@@ -220,6 +244,11 @@ public class BattleServiceImpl implements BattleService {
         return room.getStatus() == BattleRoom.BattleStatus.FINISHED
                 || room.getPlayerAHealth() <= 0
                 || room.getPlayerBHealth() <= 0;
+    }
+    
+    @Override
+    public void saveBattleRecords(BattleRoom room) {
+        saveBattleToRecords(room);
     }
 
     /**
@@ -279,5 +308,91 @@ public class BattleServiceImpl implements BattleService {
         finalDamage = Math.min(45, finalDamage);  // 最大伤害45
         
         return finalDamage;
+    }
+    
+    /**
+     * 保存对战记录到Record表
+     * 为双方玩家各创建一条Record记录
+     */
+    private void saveBattleToRecords(BattleRoom room) {
+        try {
+            // 获取所有回合记录
+            List<BattleRoundRecord> roundRecords = battleRoundRecordRepository
+                    .findByBattleRoomIdOrderByRoundNumberAsc(room.getId());
+            
+            if (roundRecords.isEmpty()) {
+                log.warn("对战房间 {} 没有回合记录，无法保存", room.getRoomCode());
+                return;
+            }
+            
+            // 获取玩家
+            User playerA = userRepository.findByUsername(room.getPlayerA())
+                    .orElseThrow(() -> new BusinessException(404, "玩家A不存在"));
+            User playerB = userRepository.findByUsername(room.getPlayerB())
+                    .orElseThrow(() -> new BusinessException(404, "玩家B不存在"));
+            
+            // 为玩家A创建记录
+            savePlayerBattleRecord(playerA, room, roundRecords, true);
+            
+            // 为玩家B创建记录
+            savePlayerBattleRecord(playerB, room, roundRecords, false);
+            
+            log.info("对战记录已保存: 房间={}, 玩家A={}, 玩家B={}", 
+                    room.getRoomCode(), room.getPlayerA(), room.getPlayerB());
+            
+        } catch (Exception e) {
+            log.error("保存对战记录失败: {}", e.getMessage(), e);
+            // 不抛出异常，避免影响游戏结束流程
+        }
+    }
+    
+    /**
+     * 为单个玩家保存对战记录
+     */
+    private void savePlayerBattleRecord(User player, BattleRoom room, 
+                                       List<BattleRoundRecord> roundRecords, boolean isPlayerA) {
+        // 创建Record
+        com.campusguess.demo.model.entity.Record record = new com.campusguess.demo.model.entity.Record();
+        record.setUser(player);
+        record.setGameType("BATTLE");  // 对战模式
+        record.setTotalQuestionNum(roundRecords.size());
+        
+        // 对战不计算积分，设为0
+        int pointsBefore = player.getPoints() != null ? player.getPoints() : 0;
+        record.setPointBefore(pointsBefore);
+        record.setEarnPoints(0);
+        record.setPointAfter(pointsBefore);
+        
+        com.campusguess.demo.model.entity.Record savedRecord = recordRepository.save(record);
+        
+        // 创建RecordItem列表
+        List<RecordItem> items = new ArrayList<>();
+        for (BattleRoundRecord roundRecord : roundRecords) {
+            RecordItem item = new RecordItem();
+            item.setRecord(savedRecord);
+            
+            // 获取题目
+            Question question = questionRepository.findById(roundRecord.getQuestionId())
+                    .orElse(null);
+            if (question != null) {
+                item.setQuestion(question);
+            }
+            
+            // 设置该玩家的坐标
+            if (isPlayerA) {
+                item.setUserLon(roundRecord.getPlayerALon());
+                item.setUserLat(roundRecord.getPlayerALat());
+            } else {
+                item.setUserLon(roundRecord.getPlayerBLon());
+                item.setUserLat(roundRecord.getPlayerBLat());
+            }
+            
+            // 对战模式不计算单题得分，设为0
+            item.setSingleScore(0);
+            
+            items.add(item);
+        }
+        
+        recordItemRepository.saveAll(items);
     }
 }

@@ -3,6 +3,8 @@ package com.campusguess.demo.model.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 对战房间实体
@@ -75,6 +77,10 @@ public class BattleRoom {
 
     /** 结束时间 */
     private LocalDateTime finishedAt;
+    
+    /** 回合记录列表 */
+    @OneToMany(mappedBy = "battleRoom", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BattleRoundRecord> roundRecords = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

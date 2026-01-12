@@ -258,6 +258,9 @@ public class BattleWebSocketController {
             room.setFinishedAt(java.time.LocalDateTime.now());
             battleRoomRepository.save(room);
             
+            // 保存对战记录
+            battleService.saveBattleRecords(room);
+            
             // 通知退出者
             BattleStateMessage quitMsg = BattleStateMessage.builder()
                     .type(BattleStateMessage.MessageType.GAME_OVER)
