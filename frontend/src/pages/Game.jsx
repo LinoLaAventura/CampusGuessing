@@ -395,7 +395,7 @@ const Game = () => {
     const mapCenter = useMemo(() => {
         if (isSolo && correctLatLng) return [correctLatLng.lat, correctLatLng.lng];
         // Default center: SYSU Zhuhai Campus approximate location (fallback)
-        return [22.255, 113.541];
+        return [22.351484, 113.583680];
     }, [correctLatLng, isSolo]);
 
     const mapZoom = useMemo(() => {
