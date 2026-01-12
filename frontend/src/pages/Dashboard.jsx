@@ -402,15 +402,15 @@ const Dashboard = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="glass-dark rounded-3xl mb-8 overflow-hidden"
+                    className="glass-dark rounded-3xl mb-8 overflow-hidden border-20 border-white/20"
                 >
                     <button
                         type="button"
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left bg-blue-900"
+                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left "
                     >
                         <div className="flex items-center gap-3">
-                            <History className="w-5 h-5 text-gray-400" />
+                            <History className="w-5 h-5 text-gray-100 " />
                             <h2 className="text-xl font-bold">对战记录</h2>
                         </div>
                         <div className="flex items-center gap-2">
@@ -468,12 +468,12 @@ const Dashboard = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="glass-dark rounded-3xl mb-8 overflow-hidden"
+                    className="glass-dark rounded-3xl mb-8 overflow-hidden border-2 border-white/20"
                 >
                     <button
                         type="button"
                         onClick={() => setIsCreateOpen(!isCreateOpen)}
-                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left bg-blue-800"
+                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left"
                     >
                         <div className="flex items-center gap-3">
                             <PlusCircle className="w-5 h-5 text-gray-400" />
@@ -652,7 +652,7 @@ const Dashboard = () => {
                     </button>
                     <button
                         onClick={() => navigate('/leaderboard')}
-                        className="w-full py-4 glass-dark text-white font-semibold rounded-2xl hover:bg-white/20 transition-all"
+                        className="w-full py-4 bg-gradient-to-r from-sky-600 to-blue-700 text-white font-semibold rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all"
                     >
                         查看排行榜
                     </button>

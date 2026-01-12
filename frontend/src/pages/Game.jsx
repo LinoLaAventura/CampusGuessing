@@ -79,14 +79,14 @@ function buildSubmitResult({ guessPosition, correctCoord }) {
 }
 
 function getTileLayer(isSolo) {
-    if (!isSolo) {
-        return {
-            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-            subdomains: undefined,
-            maxZoom: 18,
-        };
-    }
+    // if (!isSolo) {
+    //     return {
+    //         url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    //         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    //         subdomains: undefined,
+    //         maxZoom: 18,
+    //     };
+    // }
 
     // 练习模式：使用高德路网图（style=8 更快），缓存友好
     return {
