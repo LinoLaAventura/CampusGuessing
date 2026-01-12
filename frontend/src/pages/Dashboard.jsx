@@ -364,7 +364,7 @@ const Dashboard = () => {
                     </div>
 
                     <div>
-                        <h3 className="text-lg font-semibold mb-4">中大积分</h3>
+                        {/* <h3 className="text-lg font-semibold mb-4">中大积分</h3> */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {stats.map((stat, index) => (
                                 stat.onClick ? (
@@ -404,7 +404,7 @@ const Dashboard = () => {
                     <button
                         type="button"
                         onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left bg-blue-900"
                     >
                         <div className="flex items-center gap-3">
                             <History className="w-5 h-5 text-gray-400" />
@@ -469,7 +469,7 @@ const Dashboard = () => {
                     <button
                         type="button"
                         onClick={() => setIsCreateOpen(!isCreateOpen)}
-                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left"
+                        className="w-full flex items-center justify-between p-6 hover:bg-white/5 transition-colors cursor-pointer text-left bg-blue-800"
                     >
                         <div className="flex items-center gap-3">
                             <PlusCircle className="w-5 h-5 text-gray-400" />
@@ -613,7 +613,7 @@ const Dashboard = () => {
                                         type="button"
                                         onClick={handleCreate}
                                         disabled={createLoading}
-                                        className="w-full py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:hover:shadow-none"
+                                        className="w-full py-3 bg-gradient-to-r from-blue-800 to-blue-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-orange-500/50 transition-all disabled:opacity-50 disabled:hover:shadow-none"
                                     >
                                         {createLoading ? '创建中...' : '创建题目'}
                                     </button>
@@ -636,13 +636,13 @@ const Dashboard = () => {
                 >
                     <button
                         onClick={() => navigate('/game-menu')}
-                        className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-2xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/50 hover:scale-[1.02] transition-all"
+                        className="w-full py-4 bg-gradient-to-r from-orange-400 to-orange-500 text-white font-semibold rounded-2xl shadow-lg shadow-orange-400/30 hover:shadow-orange-400/50 hover:scale-[1.02] transition-all"
                     >
                         开始游戏
                     </button>
                     <button
                         onClick={() => navigate('/leaderboard')}
-                        className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold rounded-2xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:scale-[1.02] transition-all"
+                        className="w-full py-4 bg-gradient-to-r from-orange-400 to-orange-500 text-white font-semibold rounded-2xl shadow-lg shadow-orange-400/30 hover:shadow-orange-400/50 hover:scale-[1.02] transition-all"
                     >
                         查看排行榜
                     </button>
