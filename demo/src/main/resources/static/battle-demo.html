@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双人对战示例</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            width: 200px;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            background: #f9f9f9;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .battle-info {
+            background: #e3f2fd;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .health-bar {
+            background: #ddd;
+            height: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .health-fill {
+            background: #4caf50;
+            height: 100%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <h1>校园猜猜猜 - 双人对战</h1>
+
+    <div class="section">
+        <h3>1. 连接WebSocket</h3>
+        <input type="text" id="serverUrl" placeholder="服务器地址" value="http://localhost:8080">
+        <br>
+        <input type="text" id="username" placeholder="输入你的用户名" value="user1">
+        <button onclick="connect()">连接</button>
+        <button onclick="disconnect()">断开</button>
+        <button id="quitBattleBtn" onclick="quitBattle()" style="background: #f44336; color: white; display: none;">退出对战</button>
+        <p>状态: <span id="connection-status">未连接</span></p>
+        <p style="font-size: 12px; color: #666;">
+            提示：局域网对战请将服务器地址改为：http://[服务器IP]:8080<br>
+            例如：http://192.168.1.100:8080<br>
+            <strong style="color: #f44336;">⚠️ 注意：同一用户名只能在一个页面连接，重复连接会导致消息丢失</strong>
+        </p>
+    </div>
+
+    <div class="section">
+        <h3>2. 发起对战邀请</h3>
+        <input type="text" id="inviteTarget" placeholder="邀请对方用户名" value="user2">
+        <button onclick="sendInvite()">发起邀请</button>
+    </div>
+
+    <div class="section" id="inviteSection" style="display: none;">
+        <h3>3. 收到对战邀请</h3>
+        <p id="inviteMessage"></p>
+        <button onclick="acceptInvite()">接受</button>
+        <button onclick="rejectInvite()">拒绝</button>
+    </div>
+
+    <div class="section" id="battleSection" style="display: none;">
+        <h3>对战进行中 <button onclick="quitBattle()" style="background: #f44336; color: white;">退出对战</button></h3>
+        <div class="battle-info">
+            <p>房间号: <span id="roomCode"></span></p>
+            <p>回合数: <span id="roundNumber"></span></p>
+            <div>
+                <p id="playerAName"></p>
+                <div class="health-bar">
+                    <div id="playerAHealth" class="health-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div>
+                <p id="playerBName"></p>
+                <div class="health-bar">
+                    <div id="playerBHealth" class="health-fill" style="width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="questionSection" style="display: none;">
+            <h4>题目</h4>
+            <p>图片ID: <span id="questionImageKey"></span></p>
+            <p>提示: <span id="questionHint"></span></p>
+            
+            <h4>提交答案</h4>
+            <input type="number" id="answerLon" placeholder="经度" step="0.000001" value="113.123456">
+            <input type="number" id="answerLat" placeholder="纬度" step="0.000001" value="23.123456">
+            <button onclick="submitAnswer()">提交答案</button>
+        </div>
+
+        <div id="roundResult" style="display: none;">
+            <h4>回合结果</h4>
+            <p id="resultText"></p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>消息日志</h3>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentUsername = '';
+        let currentRoomCode = '';
+        let currentInviteRoomCode = '';
+        let inBattle = false; // 是否在对战中
+
+        // 连接WebSocket
+        function connect() {
+            currentUsername = document.getElementById('username').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+            
+            if (!currentUsername) {
+                alert('请输入用户名');
+                return;
+            }
+            
+            if (!serverUrl) {
+                alert('请输入服务器地址');
+                return;
+            }
+
+            // 在URL中添加username参数
+            const wsUrl = serverUrl + '/api/ws-battle?username=' + encodeURIComponent(currentUsername);
+            addMessage('正在连接到: ' + wsUrl);
+            
+            const socket = new SockJS(wsUrl);
+            stompClient = Stomp.over(socket);
+
+            stompClient.connect({}, function(frame) {
+                document.getElementById('connection-status').textContent = '已连接';
+                addMessage('WebSocket已连接: ' + currentUsername);
+                console.log('WebSocket连接成功:', frame);
+
+                // 订阅对战邀请
+                stompClient.subscribe('/user/queue/battle/invite', function(message) {
+                    console.log('收到邀请消息:', message.body);
+                    handleInvite(JSON.parse(message.body));
+                });
+
+                // 订阅对战状态更新
+                stompClient.subscribe('/user/queue/battle/state', function(message) {
+                    console.log('收到状态更新消息:', message.body);
+                    handleBattleState(JSON.parse(message.body));
+                });
+            }, function(error) {
+                document.getElementById('connection-status').textContent = '连接失败';
+                addMessage('连接失败: ' + error);
+            });
+        }
+
+        // 断开连接
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+            }
+            document.getElementById('connection-status').textContent = '未连接';
+            addMessage('已断开连接');
+        }
+
+        // 发起邀请
+        function sendInvite() {
+            if (inBattle) {
+                addMessage('❌ 你正在对战中，无法发起新邀请');
+                return;
+            }
+            
+            const toUsername = document.getElementById('inviteTarget').value;
+            if (!toUsername) {
+                alert('请输入对方用户名');
+                return;
+            }
+            
+            // 检查是否邀请自己
+            if (toUsername === currentUsername) {
+                addMessage('❌ 不能邀请自己对战');
+                alert('不能邀请自己对战！');
+                return;
+            }
+
+            const request = {
+                fromUsername: currentUsername,
+                toUsername: toUsername
+            };
+
+            stompClient.send('/app/battle/invite', {}, JSON.stringify(request));
+            addMessage('📨 已发送邀请给: ' + toUsername + '，等待对方响应...');
+        }
+
+        // 处理收到的邀请
+        function handleInvite(data) {
+            addMessage('📬 收到邀请: ' + data.message);
+            
+            // 如果正在对战中，自动拒绝
+            if (inBattle) {
+                addMessage('⚔️ 你正在对战中，自动拒绝了邀请');
+                const response = {
+                    roomCode: data.roomCode,
+                    accepted: false,
+                    username: currentUsername
+                };
+                stompClient.send('/app/battle/respond', {}, JSON.stringify(response));
+                return;
+            }
+            
+            currentInviteRoomCode = data.roomCode;
+            document.getElementById('inviteSection').style.display = 'block';
+            document.getElementById('inviteMessage').textContent = data.message + ' (房间: ' + data.roomCode + ')';
+        }
+
+        // 接受邀请
+        function acceptInvite() {
+            const response = {
+                roomCode: currentInviteRoomCode,
+                accepted: true,
+                username: currentUsername
+            };
+
+            stompClient.send('/app/battle/respond', {}, JSON.stringify(response));
+            document.getElementById('inviteSection').style.display = 'none';
+            addMessage('✅ 已接受邀请，等待游戏开始...');
+        }
+
+        // 拒绝邀请
+        function rejectInvite() {
+            const response = {
+                roomCode: currentInviteRoomCode,
+                accepted: false,
+                username: currentUsername
+            };
+
+            stompClient.send('/app/battle/respond', {}, JSON.stringify(response));
+            document.getElementById('inviteSection').style.display = 'none';
+            addMessage('已拒绝邀请');
+        }
+        
+        // 退出对战
+        function quitBattle() {
+            if (!confirm('确定要退出对战吗？退出后将判负！')) {
+                return;
+            }
+            
+            const request = {
+                fromUsername: currentUsername
+            };
+            
+            stompClient.send('/app/battle/quit', {}, JSON.stringify(request));
+            addMessage('⚠️ 正在退出对战...');
+        }
+
+        // 处理对战状态更新
+        function handleBattleState(data) {
+            switch(data.type) {
+                case 'INVITE_REJECTED':
+                    alert('对方拒绝了邀请');
+                    addMessage('❌ ' + data.message);
+                    break;
+
+                case 'GAME_START':
+                    // 判断对方是谁
+                    const opponent = (data.playerA === currentUsername) ? data.playerB : data.playerA;
+                    addMessage('✅ ' + opponent + ' 接受了邀请！游戏即将开始...');
+                    addMessage('🎮 对战开始！房间号: ' + data.roomCode);
+                    console.log('收到GAME_START消息:', data);
+                    inBattle = true;
+                    updateInviteButtonState();
+                    startRound(data);
+                    break;
+                    
+                case 'NEW_QUESTION':
+                    addMessage('📝 新回合开始：' + data.message);
+                    startRound(data);
+                    break;
+
+                case 'PLAYER_ANSWERED':
+                    addMessage('⏰ 对方已作答，请尽快作答！倒计时: ' + data.countdown + '秒');
+                    break;
+
+                case 'ROUND_RESULT':
+                    addMessage('📊 ' + data.message);
+                    showRoundResult(data);
+                    break;
+
+                case 'GAME_OVER':
+                    addMessage('🏁 ' + data.message);
+                    showGameOver(data);
+                    break;
+                    
+                default:
+                    addMessage('状态更新: ' + data.type + ' - ' + data.message);
+            }
+        }
+
+        // 开始回合
+        function startRound(data) {
+            currentRoomCode = data.roomCode;
+            inBattle = true;
+            updateBattleButtonState();
+            
+            document.getElementById('battleSection').style.display = 'block';
+            document.getElementById('questionSection').style.display = 'block';
+            document.getElementById('roundResult').style.display = 'none';
+
+            document.getElementById('roomCode').textContent = data.roomCode;
+            document.getElementById('roundNumber').textContent = data.currentRound;
+            
+            document.getElementById('playerAName').textContent = data.playerA + ' 血量';
+            document.getElementById('playerBName').textContent = data.playerB + ' 血量';
+            document.getElementById('playerAHealth').style.width = data.playerAHealth + '%';
+            document.getElementById('playerBHealth').style.width = data.playerBHealth + '%';
+
+            if (data.question) {
+                document.getElementById('questionImageKey').textContent = data.question.imageKey;
+                document.getElementById('questionHint').textContent = data.question.hint || '无';
+            }
+        }
+
+        // 提交答案
+        function submitAnswer() {
+            const lon = parseFloat(document.getElementById('answerLon').value);
+            const lat = parseFloat(document.getElementById('answerLat').value);
+
+            if (isNaN(lon) || isNaN(lat)) {
+                alert('请输入有效的经纬度');
+                return;
+            }
+
+            const answer = {
+                roomCode: currentRoomCode,
+                username: currentUsername,
+                longitude: lon,
+                latitude: lat
+            };
+
+            stompClient.send('/app/battle/answer', {}, JSON.stringify(answer));
+            addMessage('已提交答案');
+            document.getElementById('questionSection').style.display = 'none';
+        }
+
+        // 显示回合结果
+        function showRoundResult(data) {
+            document.getElementById('roundResult').style.display = 'block';
+            
+            const result = data.roundResult;
+            let resultText = '玩家A距离: ' + result.playerADistance.toFixed(2) + '米\n';
+            resultText += '玩家B距离: ' + result.playerBDistance.toFixed(2) + '米\n';
+            if (result.damagedPlayer) {
+                resultText += result.damagedPlayer + ' 受到 ' + result.damage + ' 点伤害';
+            } else {
+                resultText += '平局！';
+            }
+
+            document.getElementById('resultText').textContent = resultText;
+
+            // 更新血量
+            document.getElementById('playerAHealth').style.width = data.playerAHealth + '%';
+            document.getElementById('playerBHealth').style.width = data.playerBHealth + '%';
+        }
+
+        // 显示游戏结束
+        function showGameOver(data) {
+            const result = data.roundResult;
+            let resultText = '游戏结束！\n';
+            resultText += '获胜者: ' + data.winner + '\n';
+            if (data.playerA && data.playerB) {
+                resultText += '最终血量:\n';
+                resultText += data.playerA + ': ' + (data.playerAHealth || 0) + '\n';
+                resultText += data.playerB + ': ' + (data.playerBHealth || 0);
+            }
+
+            alert(resultText);
+            document.getElementById('battleSection').style.display = 'none';
+            
+            // 对战结束，恢复状态
+            inBattle = false;
+            updateBattleButtonState();
+            addMessage('🎮 对战结束，你可以重新发起或接收邀请了');
+        }
+
+        // 更新按钮状态（邀请按钮和退出按钮）
+        function updateBattleButtonState() {
+            // 更新邀请按钮
+            const inviteBtn = document.querySelector('button[onclick="sendInvite()"]');
+            if (inviteBtn) {
+                inviteBtn.disabled = inBattle;
+                inviteBtn.style.opacity = inBattle ? '0.5' : '1';
+                inviteBtn.style.cursor = inBattle ? 'not-allowed' : 'pointer';
+            }
+            // 更新顶部退出对战按钮
+            const quitBtn = document.getElementById('quitBattleBtn');
+            if (quitBtn) {
+                quitBtn.style.display = inBattle ? 'inline-block' : 'none';
+            }
+        }
+        
+        // 兼容旧函数名
+        function updateInviteButtonState() {
+            updateBattleButtonState();
+        }
+        
+        // 添加消息到日志
+        function addMessage(msg) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElem = document.createElement('div');
+            messageElem.className = 'message';
+            messageElem.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            messagesDiv.appendChild(messageElem);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>

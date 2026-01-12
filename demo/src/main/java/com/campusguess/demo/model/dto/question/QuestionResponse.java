@@ -15,6 +15,7 @@ public class QuestionResponse {
     private LocalDateTime createdAt;
     private String campus;
     private String difficulty;
+    private String imageKey; // 图片key
     private CorrectCoord correctCoord;
     private Object imageData; // 从图床获取到的图片信息对象
 

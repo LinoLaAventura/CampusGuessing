@@ -1,13 +1,68 @@
-# CampusGuessSystem - AI coding guide
+## CampusGuessSystem – AI coding guide
 
-- Stack: Spring Boot 4.0, Java 17, Spring Data JPA + MySQL, Hikari DS; app context path `/api` (server.servlet.context-path) lives in [demo/src/main/resources/application.yml](demo/src/main/resources/application.yml).
-- Architecture: controller → service interface → service/impl → repository → entity; DTOs live under `model/dto/{domain}`. Keep service impls `@Transactional`, prefer constructor injection with Lombok `@RequiredArgsConstructor`.
-- Routing/auth: `SecurityConfig` currently permits all requests and disables CSRF; authentication is effectively off. User identity is passed via path variable `{username}` for user-scoped endpoints (see [demo/src/main/java/com/campusguess/demo/controller/QuestionController.java](demo/src/main/java/com/campusguess/demo/controller/QuestionController.java) and [demo/src/main/java/com/campusguess/demo/controller/FriendController.java](demo/src/main/java/com/campusguess/demo/controller/FriendController.java)). JWT helpers exist in [demo/src/main/java/com/campusguess/demo/config/JwtTokenUtil.java](demo/src/main/java/com/campusguess/demo/config/JwtTokenUtil.java) but are not enforced by filters.
-- Response/exception pattern: wrap all responses with `ApiResponse` helpers in [demo/src/main/java/com/campusguess/demo/model/dto/response/ApiResponse.java](demo/src/main/java/com/campusguess/demo/model/dto/response/ApiResponse.java) via `ResponseEntity`. Throw `BusinessException(code, message)` and let [demo/src/main/java/com/campusguess/demo/exception/GlobalExceptionHandler.java](demo/src/main/java/com/campusguess/demo/exception/GlobalExceptionHandler.java) convert to `ApiResponse.error`; validation errors and SQL uniqueness conflicts already mapped to 400/409.
-- Pagination: clients send 1-based `page`; controllers convert with `PageRequest.of(page - 1, size, Sort.by(DESC, ...))`. Sorting fields vary by resource (e.g., `createdAt`, `handledAt`).
-- Entities: `User` implements `UserDetails`, sets default `role="user"` and `createdAt` in `@PrePersist`, and exposes authorities as `ROLE_{ROLE}`. `Question` stores `imageKey` plus `correctLon/Lat` and timestamps on create. `Friendship` enforces unique sender/receiver and tracks status/handledType/timestamps; double-entry pattern is used at the service layer (pending→approved plus reverse record). `Record`/`RecordItem` capture per-session scoring data.
-- Business rules to keep: user-scoped endpoints must use the path username; friend workflow uses pending/approved/rejected with mirrored records; question author-only delete pattern; keep response messages in Chinese for consistency.
-- Data/config: database `campusguesssystem`, `ddl-auto: update`, SQL logged and pretty-printed; JSON timezone GMT+8 with `yyyy-MM-dd HH:mm:ss`. JWT secret/expiration and image host URL/token configured in [demo/src/main/resources/application.yml](demo/src/main/resources/application.yml); avoid hardcoding secrets elsewhere.
-- External integration: question images reference external picui via `imageKey` and `image.host.*` config; use `ImageClient` lookup rather than storing full URLs when extending image features.
-- Build/test/run (from `demo/`): `./mvnw spring-boot:run`, `./mvnw clean package`, `./mvnw test`. Devtools included for hot reload; remember context path when hitting endpoints.
-- Coding checklist for new features: place entities under `model/entity` with `@PrePersist` timestamps; repositories extend `JpaRepository` with JPQL `@Query` for custom needs; split DTOs by module; services in `service` + `service/impl` with constructor DI and transactions; controllers lean on global exception handling and return `ApiResponse`.
+### 技术栈与架构
+- **运行时**: Spring Boot 3.x, Java 17, Spring Data JPA + MySQL(Hikari); 所有端点挂载在 `/api` 下 ([application.yml](demo/src/main/resources/application.yml))
+- **分层架构**: `Controller → Service接口 → ServiceImpl → Repository → Entity`; DTO按模块放在 `model/dto/{domain}/`
+- **依赖注入**: ServiceImpl 使用 `@Transactional` + Lombok `@RequiredArgsConstructor` 构造器注入
+
+### 响应与异常处理
+- **统一响应**: 所有返回值包装为 `ApiResponse<T>` ([ApiResponse.java](demo/src/main/java/com/campusguess/demo/model/dto/response/ApiResponse.java))
+  - 成功: `ApiResponse.success(message, data)`, 新建资源: `ApiResponse.created(message, data)` + HTTP 201
+  - 错误: 抛出 `BusinessException(code, message)`, [GlobalExceptionHandler](demo/src/main/java/com/campusguess/demo/exception/GlobalExceptionHandler.java) 统一转换
+- **消息语言**: 成功/错误消息使用**中文**
+
+### 安全模型
+- [SecurityConfig](demo/src/main/java/com/campusguess/demo/config/SecurityConfig.java) 允许所有请求、禁用CSRF（开发阶段）
+- JWT 仅用于登录返回 token ([JwtTokenUtil](demo/src/main/java/com/campusguess/demo/config/JwtTokenUtil.java))，**无 Filter 校验**
+- 用户身份通过 `{username}` 路径变量传递（如 `/users/{username}/questions`）
+
+### API约定
+- **分页**: 接收1-based `page` 参数，使用 `PageRequest.of(page - 1, size, Sort.by(DESC, "createdAt"))`
+- **路由命名**: 用户范围资源 `/users/{username}/{resource}`; 全局资源 `/{resource}`
+- **校验**: DTO 使用 `@Valid` 注解，字段校验在 DTO 类定义
+
+### 领域模型 (`model/entity/`)
+| 实体 | 关键字段 | 规则 |
+|-----|---------|------|
+| `User` | username(唯一), role, points | `@PrePersist` 设置 `role="user"`, createdAt; 实现 `UserDetails` |
+| `Question` | imageKey, correctLon/Lat, author | 仅作者可删除; 图片用 `imageKey` 非完整URL |
+| `BattleRoom` | roomCode, playerA/B, status(WAITING/PLAYING/FINISHED) | 对战房间状态机; 存储双方答案和血量 |
+| `Record`/`RecordItem` | 单人游戏记录 | 按回答计算积分 |
+| `Friendship` | sender/receiver, status | 双向好友关系，Service层做镜像插入 |
+
+### WebSocket 对战系统 (核心模块)
+- **配置**: [WebSocketConfig](demo/src/main/java/com/campusguess/demo/config/WebSocketConfig.java) 启用STOMP协议
+- **端点**: `/api/ws-battle` (SockJS降级), 连接时URL参数 `?username=xxx` 标识用户
+- **消息前缀**: 客户端发送 `/app/...`, 订阅 `/user/queue/...` 或 `/topic/...`
+- **控制器**: [BattleWebSocketController](demo/src/main/java/com/campusguess/demo/controller/BattleWebSocketController.java) 处理:
+  - `/app/battle/invite` → 发起邀请
+  - `/app/battle/respond` → 接受/拒绝
+  - `/app/battle/answer` → 提交答案
+  - `/app/battle/quit` → 退出对战
+- **在线管理**: [OnlineUserService](demo/src/main/java/com/campusguess/demo/service/OnlineUserService.java) 追踪用户在线和对战状态
+- **推送给客户端**: 使用 `SimpMessagingTemplate.convertAndSendToUser(username, destination, message)`
+
+### DTO 命名约定 (`model/dto/{domain}/`)
+- 请求: `{Action}Request.java` (如 `BattleInviteRequest`)
+- 响应: `{Entity}Response.java` 或 `{Entity}ListResponse.java`
+- 对战状态消息: `BattleStateMessage` (含 `MessageType` 枚举: INVITE/GAME_START/ROUND_RESULT/GAME_OVER 等)
+
+### 外部服务
+- **图床**: picui.cn, 配置在 `image.host.url/token` ([application.yml](demo/src/main/resources/application.yml))
+- 扩展图片功能时使用 `ImageClient` 抽象，不要硬编码URL
+
+### 开发命令 (从 `demo/` 目录)
+```bash
+./mvnw spring-boot:run      # 启动(DevTools热重载)
+./mvnw clean package        # 打包
+./mvnw test                 # 测试
+```
+测试端点记得加 `/api` 前缀 (如 `http://localhost:8080/api/questions`)
+
+### 新功能开发清单
+1. Entity → `model/entity/`, 加 `@PrePersist` 处理时间戳
+2. Repository → 继承 `JpaRepository`, 复杂查询用 `@Query` JPQL
+3. Service接口 → `service/`, Impl → `service/impl/`, 加 `@Transactional`
+4. DTO → `model/dto/{domain}/`, 请求DTO加校验注解
+5. Controller → 返回 `ResponseEntity<ApiResponse<T>>`, 异常交给全局处理
+6. WebSocket功能 → 参考 `BattleWebSocketController`, 用 `@MessageMapping`

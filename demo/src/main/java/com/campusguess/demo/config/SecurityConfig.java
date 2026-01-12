@@ -20,9 +20,10 @@ public class SecurityConfig {
 
     // 暂时禁用了
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) {
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-                .csrf(csrf -> csrf.disable());
+                .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin())); // 允许同源iframe，WebSocket需要
         return http.build();
     }
 }
