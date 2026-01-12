@@ -4,6 +4,8 @@ import com.campusguess.demo.exception.BusinessException;
 import com.campusguess.demo.model.dto.comment.CommentRequest;
 import com.campusguess.demo.model.dto.comment.CommentResponse;
 import com.campusguess.demo.model.entity.*;
+
+import java.util.List;
 import com.campusguess.demo.repository.*;
 import com.campusguess.demo.service.CommentService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,27 @@ public class CommentServiceImpl implements CommentService {
     private final CommentLikeRepository commentLikeRepository;
     private final QuestionRepository questionRepository;
     private final UserRepository userRepository;
+
+    @Override
+    public List<CommentResponse> getCommentsByQuestionId(Long questionId) {
+        // 校验题目是否存在
+        if (!questionRepository.existsById(questionId)) {
+            throw new BusinessException(404, "题目不存在");
+        }
+
+        List<Comment> comments = commentRepository.findByQuestionIdOrderByCreatedAtDesc(questionId);
+        
+        return comments.stream().map(comment -> {
+            CommentResponse response = new CommentResponse();
+            response.setCommentId(comment.getId());
+            response.setContent(comment.getContent());
+            response.setUserId(comment.getUser().getId());
+            response.setUsername(comment.getUser().getUsername());
+            response.setCreateTime(comment.getCreatedAt());
+            response.setLikeCount(comment.getLikeCount());
+            return response;
+        }).toList();
+    }
 
     @Override
     @Transactional

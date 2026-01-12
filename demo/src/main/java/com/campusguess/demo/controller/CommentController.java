@@ -9,11 +9,22 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 public class CommentController {
 
     private final CommentService commentService;
+
+    // 获取题目评论列表
+    @GetMapping("/questions/{questionId}/comments")
+    public ResponseEntity<ApiResponse<List<CommentResponse>>> getComments(
+            @PathVariable Long questionId) {
+        
+        List<CommentResponse> comments = commentService.getCommentsByQuestionId(questionId);
+        return ResponseEntity.ok(ApiResponse.success("查询成功", comments));
+    }
 
     // 5.1 コメント投稿
     @PostMapping("/questions/{questionId}/comments")

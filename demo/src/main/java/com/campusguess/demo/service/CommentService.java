@@ -3,7 +3,12 @@ package com.campusguess.demo.service;
 import com.campusguess.demo.model.dto.comment.CommentRequest;
 import com.campusguess.demo.model.dto.comment.CommentResponse;
 
+import java.util.List;
+
 public interface CommentService {
+    // 获取题目评论列表
+    List<CommentResponse> getCommentsByQuestionId(Long questionId);
+
     // コメント投稿
     CommentResponse addComment(Long questionId, CommentRequest request);
 
