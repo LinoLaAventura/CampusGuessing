@@ -99,11 +99,17 @@ public class BattleWebSocketController {
                 return;
             }
 
-            // 创建房间
+            // 创建房间，并设置游戏模式
             BattleRoom room = battleService.createInvite(
                     request.getFromUsername(),
                     request.getToUsername()
             );
+            
+            // 设置游戏模式
+            if (request.getGameType() != null && !request.getGameType().isEmpty()) {
+                room.setGameType(request.getGameType());
+                battleRoomRepository.save(room);
+            }
 
             // 构建邀请消息
             BattleStateMessage message = BattleStateMessage.builder()
@@ -111,6 +117,7 @@ public class BattleWebSocketController {
                     .roomCode(room.getRoomCode())
                     .playerA(room.getPlayerA())
                     .playerB(room.getPlayerB())
+                    .gameType(room.getGameType())
                     .message(request.getFromUsername() + " 邀请你进行对战")
                     .build();
 
@@ -179,6 +186,7 @@ public class BattleWebSocketController {
                         .playerBHealth(room.getPlayerBHealth())
                         .currentRound(room.getCurrentRound())
                         .question(questionResp)
+                        .gameType(room.getGameType())
                         .message("对战开始！")
                         .build();
                 log.info("GAME_START消息已构建");
@@ -359,6 +367,7 @@ public class BattleWebSocketController {
                         .playerAHealth(updatedRoom.getPlayerAHealth())
                         .playerBHealth(updatedRoom.getPlayerBHealth())
                         .winner(updatedRoom.getWinner())
+                        .gameType(updatedRoom.getGameType())
                         .roundResult(result)
                         .message("游戏结束！获胜者：" + updatedRoom.getWinner())
                         .build();
@@ -386,6 +395,7 @@ public class BattleWebSocketController {
                         .playerAHealth(updatedRoom.getPlayerAHealth())
                         .playerBHealth(updatedRoom.getPlayerBHealth())
                         .currentRound(updatedRoom.getCurrentRound())
+                        .gameType(updatedRoom.getGameType())
                         .roundResult(result)
                         .message("第 " + updatedRoom.getCurrentRound() + " 回合结束")
                         .build();

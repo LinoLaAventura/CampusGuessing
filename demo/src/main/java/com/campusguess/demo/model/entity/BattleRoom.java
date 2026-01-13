@@ -79,6 +79,10 @@ public class BattleRoom {
     /** 回合历史数据（JSON格式存储） */
     @Column(columnDefinition = "TEXT")
     private String roundHistoryJson;
+    
+    /** 游戏模式：独自变强、好友对战、积分排行 */
+    @Column(name = "game_type", length = 20)
+    private String gameType;
 
     @PrePersist
     protected void onCreate() {

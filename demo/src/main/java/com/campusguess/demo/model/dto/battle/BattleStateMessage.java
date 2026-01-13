@@ -57,6 +57,9 @@ public class BattleStateMessage {
     /** 回合结果详情 */
     private RoundResult roundResult;
     
+    /** 游戏模式：独自变强、好友对战、积分排行 */
+    private String gameType;
+    
     public enum MessageType {
         INVITE,          // 邀请通知
         INVITE_ACCEPTED, // 邀请被接受

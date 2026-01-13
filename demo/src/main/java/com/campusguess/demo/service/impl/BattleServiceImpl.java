@@ -48,6 +48,7 @@ public class BattleServiceImpl implements BattleService {
         room.setPlayerAHealth(100);
         room.setPlayerBHealth(100);
         room.setCurrentRound(1);
+        room.setGameType("好友对战"); // 默认为好友对战
 
         return battleRoomRepository.save(room);
     }
@@ -424,14 +425,42 @@ public class BattleServiceImpl implements BattleService {
         // 创建Record
         com.campusguess.demo.model.entity.Record record = new com.campusguess.demo.model.entity.Record();
         record.setUser(player);
-        record.setGameType("BATTLE");  // 对战模式
+        
+        // 设置游戏模式
+        String gameType = room.getGameType() != null ? room.getGameType() : "好友对战";
+        record.setGameType(gameType);
         record.setTotalQuestionNum(roundRecords.size());
         
-        // 对战不计算积分，设为0
+        // 根据游戏模式决定是否计算积分
         int pointsBefore = player.getPoints() != null ? player.getPoints() : 0;
         record.setPointBefore(pointsBefore);
-        record.setEarnPoints(0);
-        record.setPointAfter(pointsBefore);
+        
+        int earnPoints = 0;
+        int pointsAfter = pointsBefore;
+        
+        // 只有积分排行模式才计算积分
+        if ("积分排行".equals(gameType)) {
+            // 计算血量差
+            int playerHealth = isPlayerA ? room.getPlayerAHealth() : room.getPlayerBHealth();
+            int opponentHealth = isPlayerA ? room.getPlayerBHealth() : room.getPlayerAHealth();
+            int healthDiff = playerHealth - opponentHealth;
+            
+            // 根据血量差计算积分变化
+            earnPoints = healthDiff;
+            pointsAfter = pointsBefore + earnPoints;
+            
+            // 更新玩家积分
+            player.setPoints(pointsAfter);
+            userRepository.save(player);
+            
+            log.info("积分排行模式：玩家 {} 血量={}, 对手血量={}, 血量差={}, 积分变化={}", 
+                    player.getUsername(), playerHealth, opponentHealth, healthDiff, earnPoints);
+        } else {
+            log.info("{} 模式：不计算积分变化", gameType);
+        }
+        
+        record.setEarnPoints(earnPoints);
+        record.setPointAfter(pointsAfter);
         
         com.campusguess.demo.model.entity.Record savedRecord = recordRepository.save(record);
         log.info("Record保存成功，ID: {}", savedRecord.getId());

@@ -19,4 +19,7 @@ public class BattleInviteRequest {
     
     /** 被邀请者用户名 */
     private String toUsername;
+    
+    /** 游戏模式：独自变强、好友对战、积分排行 */
+    private String gameType;
 }

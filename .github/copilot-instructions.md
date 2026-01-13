@@ -1,13 +1,14 @@
 ## CampusGuessSystem – AI coding guide
 
 ### 技术栈与架构
-- **后端运行时**: Spring Boot 4.0.1, Java 17, Spring Data JPA + MyBatis-Plus + MySQL(Hikari连接池)
+- **后端运行时**: Spring Boot 4.0.1, Java 17, Spring Data JPA + MySQL(Hikari连接池)
 - **前端**: React (Dashboard组件位于 `frontend/src/pages/`)
 - **Web层**: Spring WebMVC + WebSocket (STOMP协议); 所有端点挂载在 `/api` 下 ([application.yml](demo/src/main/resources/application.yml#L3))
 - **分层架构**: `Controller → Service接口 → ServiceImpl → Repository → Entity`
   - DTO按领域模块分包: `model/dto/{domain}/` (auth, battle, comment, question, record, user, response)
   - 实体类: `model/entity/` 统一使用 `@PrePersist` 自动设置创建时间
 - **依赖注入**: ServiceImpl 使用 Lombok `@RequiredArgsConstructor` 构造器注入 + `@Transactional` 事务管理
+- **密码加密**: 使用 BCryptPasswordEncoder (配置于 [SecurityConfig](demo/src/main/java/com/campusguess/demo/config/SecurityConfig.java))
 - **配置管理**: 敏感配置(如JWT密钥、图床token)统一在 [application.yml](demo/src/main/resources/application.yml) 管理
   - ⚠️ **敏感信息**: `application.yml` 含数据库密码、JWT密钥、图床token (生产环境需迁移至环境变量)
 
@@ -34,6 +35,7 @@
 - **路由命名规则**:
   - 用户范围资源: `/users/{username}/{resource}` (如 `/users/alice/questions`)
   - 全局资源: `/{resource}` (如 `/questions`)
+  - Controller类路由: 部分使用 `@RequestMapping` 类级路由 (如 `AuthController`、`UserController`、`FriendController`), 其他直接在方法级定义完整路径
 - **参数校验**: DTO类使用 `@Valid` + Bean Validation注解 (如 `@NotBlank`, `@Size`)
 
 ### 领域模型详解 (`model/entity/`)
