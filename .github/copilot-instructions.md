@@ -107,7 +107,7 @@ mvnw.cmd spring-boot:run
 **常见问题排查**:
 - **数据库连接失败**: 检查 `application.yml` 中 `spring.datasource.url`/`username`/`password` 是否正确
 - **端口占用**: 修改 `application.yml` 中 `server.port` 或停止占用8080端口的进程
-- **WebSocket握手失败**: 确认URL包含 `?username=xxx` 参数, 参考 [WebSocket接口对接文档.md](WebSocket接口对接文档.md)
+- **WebSocket握手失败**: 确认URL包含 `?username=xxx` 参数, 参考 [项目交接-后端文档.md](项目交接-后端文档.md) 中的 WebSocket 接口约定
 - **依赖下载慢**: 启用 `pom.xml` 中注释的阿里云镜像配置 (约第33-43行)
 
 ### 新功能开发清单
@@ -138,5 +138,6 @@ mvnw.cmd spring-boot:run
   - 打开多个浏览器标签模拟多用户对战
 
 ### 重要文档参考
-- [WebSocket接口对接文档.md](WebSocket接口对接文档.md): WebSocket连接/订阅/消息格式详解 (含前端示例代码)
+- [项目交接-后端文档.md](项目交接-后端文档.md): 后端架构、WebSocket 服务端契约、Redis 改造与集群化计划
+- [项目交接-前端文档.md](项目交接-前端文档.md): 前端页面职责、WebSocket 客户端接入与消息处理约定
 - [对战系统更新说明.md](对战系统更新说明.md): 对战记录存储机制 (BattleRoundRecord → Record/RecordItem 转换逻辑)
