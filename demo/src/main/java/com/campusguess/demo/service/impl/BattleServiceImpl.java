@@ -275,16 +275,24 @@ public class BattleServiceImpl implements BattleService {
         saveBattleToRecords(room);
     }
 
+/**
+     * 随机获取一道题目（数据库层面随机，避免全量加载）
+     */
+    private Question getRandomQuestion() {
+        return questionRepository.findRandomQuestion()
+                .orElseThrow(() -> new BusinessException(400, "题库为空，无法开始对战"));
+    }
     /**
      * 随机获取一道题目
      */
-    private Question getRandomQuestion() {
+    private Question getRandomQuestion_old() {
         List<Question> allQuestions = questionRepository.findAll();
         if (allQuestions.isEmpty()) {
             throw new BusinessException(400, "题库为空，无法开始对战");
         }
         Random random = new Random();
         return allQuestions.get(random.nextInt(allQuestions.size()));
+
     }
 
     /**

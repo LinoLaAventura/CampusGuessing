@@ -12,7 +12,20 @@ spring:
     url: jdbc:mysql://localhost:3306/campusguesssystem?useUnicode=true&characterEncoding=utf-8&useSSL=true
     username: root
     password: 134679*Abc
-
+  # Redis 配置（在线状态、房间实时态缓存）
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # password: 134679*Abc  # 本地 Redis 无密码
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+          max-wait: 2000ms
   jpa:
     hibernate:
       ddl-auto: update
@@ -20,7 +33,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        
+
   jackson:
     time-zone: GMT+8
     date-format: yyyy-MM-dd HH:mm:ss
@@ -32,6 +45,7 @@ jwt:
 logging:
   level:
     com.zsu.planfinder: DEBUG
+
 image:
   host:
     url: https://picui.cn/api/v1

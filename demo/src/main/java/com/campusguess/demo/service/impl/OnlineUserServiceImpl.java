@@ -3,16 +3,20 @@ package com.campusguess.demo.service.impl;
 import com.campusguess.demo.service.OnlineUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+* 在线用户管理服务实现（内存版本 - 单机场景，回退用）
  * 在线用户管理服务实现
+* 在线用户管理服务实现（内存版本 - 单机场景，回退用）
  */
 @Service
 @Slf4j
+@ConditionalOnProperty(name = "online-user.store", havingValue = "memory")
 public class OnlineUserServiceImpl implements OnlineUserService {
     
     // 在线用户集合

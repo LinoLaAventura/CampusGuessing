@@ -21,6 +21,7 @@ com\campusguess\demo\service\RecordService.class
 com\campusguess\demo\model\entity\BattleRoom$BattleStatus.class
 com\campusguess\demo\config\WebSocketConfig$UserHandshakeInterceptor.class
 com\campusguess\demo\model\dto\record\RecordCreateResponse.class
+com\campusguess\demo\config\JacksonConfig.class
 com\campusguess\demo\model\dto\comment\CommentRequest.class
 com\campusguess\demo\service\impl\BattleServiceImpl$1.class
 com\campusguess\demo\controller\UserController.class
@@ -28,6 +29,7 @@ com\campusguess\demo\model\dto\record\RecordDetailResponse$PointChange.class
 com\campusguess\demo\model\dto\auth\LoginResponse.class
 com\campusguess\demo\controller\QuestionController.class
 com\campusguess\demo\model\dto\battle\BattleInviteRequest$BattleInviteRequestBuilder.class
+com\campusguess\demo\service\impl\BattleRoomCacheServiceImpl.class
 com\campusguess\demo\service\impl\RecordServiceImpl.class
 com\campusguess\demo\service\impl\OnlineUserServiceImpl.class
 com\campusguess\demo\service\ImageClient.class
@@ -37,9 +39,11 @@ com\campusguess\demo\repository\UserRepository.class
 com\campusguess\demo\service\OnlineUserService.class
 com\campusguess\demo\model\dto\auth\LoginResponse$LoginResponseBuilder.class
 com\campusguess\demo\config\JwtTokenUtil.class
+com\campusguess\demo\config\RedisKeyConstants$RoomFields.class
 com\campusguess\demo\model\dto\battle\BattleStateMessage$RoundResult.class
 com\campusguess\demo\service\impl\UserServiceImpl.class
 com\campusguess\demo\service\impl\BattleServiceImpl.class
+com\campusguess\demo\service\BattleRoomCacheService.class
 com\campusguess\demo\controller\BattleWebSocketController.class
 com\campusguess\demo\service\BattleService.class
 com\campusguess\demo\model\dto\battle\BattleStateMessage.class
@@ -49,12 +53,12 @@ com\campusguess\demo\exception\GlobalExceptionHandler.class
 com\campusguess\demo\model\dto\user\FriendshipResponse.class
 com\campusguess\demo\model\entity\Question.class
 com\campusguess\demo\model\entity\Friendship$FriendshipStatus.class
+com\campusguess\demo\service\impl\OnlineUserServiceRedisImpl.class
 com\campusguess\demo\model\dto\comment\CommentResponse.class
 com\campusguess\demo\model\dto\battle\BattleStateMessage$MessageType.class
 com\campusguess\demo\model\dto\battle\BattleAnswerRequest.class
 com\campusguess\demo\model\dto\question\CreateQuestionRequest$CorrectCoord.class
 com\campusguess\demo\service\QuestionService.class
-com\campusguess\demo\config\WebSocketConfig$CustomHandshakeHandler.class
 com\campusguess\demo\service\CommentService.class
 com\campusguess\demo\model\dto\battle\BattleInviteResponse$BattleInviteResponseBuilder.class
 com\campusguess\demo\model\dto\question\QuestionListResponse.class
@@ -67,6 +71,7 @@ com\campusguess\demo\model\dto\question\QuestionResponse.class
 com\campusguess\demo\model\dto\record\RecordDetailResponse.class
 com\campusguess\demo\model\dto\record\RecordListItem.class
 com\campusguess\demo\model\dto\battle\BattleStateMessage$RoundResult$RoundResultBuilder.class
+com\campusguess\demo\config\RedisKeyConstants.class
 com\campusguess\demo\model\dto\battle\BattleAnswerRequest$BattleAnswerRequestBuilder.class
 com\campusguess\demo\model\dto\user\AddFriendRequest.class
 com\campusguess\demo\model\entity\CommentLike.class
@@ -84,6 +89,7 @@ com\campusguess\demo\model\dto\user\FriendListResponse.class
 com\campusguess\demo\config\WebSocketConfig.class
 com\campusguess\demo\model\entity\BattleRoom.class
 com\campusguess\demo\model\dto\response\ApiResponse.class
+com\campusguess\demo\config\RedisConfig.class
 com\campusguess\demo\repository\QuestionRepository.class
 com\campusguess\demo\repository\BattleRoomRepository.class
 com\campusguess\demo\model\dto\record\RecordDetailResponse$QuestionBase.class

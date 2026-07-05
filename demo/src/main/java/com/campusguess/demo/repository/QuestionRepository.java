@@ -18,4 +18,11 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
      */
     @Query("SELECT q FROM Question q LEFT JOIN FETCH q.author WHERE q.id = :id")
     Optional<Question> findByIdWithAuthor(@Param("id") Long id);
+
+    /**
+     * 随机获取一道题目（数据库层面随机，避免全量加载）
+     * 使用 MySQL ORDER BY RAND() LIMIT 1
+     */
+    @Query(value = "SELECT * FROM questions ORDER BY RAND() LIMIT 1", nativeQuery = true)
+    Optional<Question> findRandomQuestion();
 }

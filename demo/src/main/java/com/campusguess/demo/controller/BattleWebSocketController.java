@@ -7,6 +7,7 @@ import com.campusguess.demo.model.entity.Question;
 import com.campusguess.demo.repository.BattleRoomRepository;
 import com.campusguess.demo.repository.QuestionRepository;
 import com.campusguess.demo.service.BattleService;
+import com.campusguess.demo.service.BattleRoomCacheService;
 import com.campusguess.demo.service.OnlineUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,9 @@ import org.springframework.stereotype.Controller;
 /**
  * WebSocket对战控制器
  * 处理实时对战消息
+ * <p>
+ * Redis 集成：房间状态通过 BattleRoomCacheService 缓存到 Redis，
+ * 在线状态通过 OnlineUserService（Redis 实现）管理。
  */
 @Controller
 @RequiredArgsConstructor
@@ -31,87 +35,74 @@ public class BattleWebSocketController {
     private final SimpMessagingTemplate messagingTemplate;
     private final OnlineUserService onlineUserService;
     private final BattleRoomRepository battleRoomRepository;
+    private final BattleRoomCacheService roomCacheService;
     private final SimpUserRegistry simpUserRegistry;
+
+    // ==================== 邀请流程 ====================
 
     /**
      * 发送对战邀请
-     * 客户端发送到：/app/battle/invite
      */
     @MessageMapping("/battle/invite")
     public void sendInvite(@Payload BattleInviteRequest request) {
         log.info("收到对战邀请：{} -> {}", request.getFromUsername(), request.getToUsername());
 
         try {
-            // 检查是否自我邀请
+            // 1. 检查是否自我邀请
             if (request.getFromUsername().equals(request.getToUsername())) {
                 BattleStateMessage errorMsg = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.INVITE_REJECTED)
-                        .message("❌ 不能邀请自己对战")
+                        .message("不能邀请自己对战")
                         .build();
-                messagingTemplate.convertAndSendToUser(
-                        request.getFromUsername(),
-                        "/queue/battle/state",
-                        errorMsg
-                );
+                sendToUser(request.getFromUsername(), "/queue/battle/state", errorMsg);
                 log.warn("用户 {} 尝试邀请自己对战", request.getFromUsername());
                 return;
             }
-            
-            // 检查发送者是否在对战中
+
+            // 2. 检查发送者是否在对战中
             if (onlineUserService.isUserInBattle(request.getFromUsername())) {
                 BattleStateMessage errorMsg = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.INVITE_REJECTED)
-                        .message("❌ 你正在对战中，无法发起新邀请")
+                        .message("你正在对战中，无法发起新邀请")
                         .build();
-                messagingTemplate.convertAndSendToUser(
-                        request.getFromUsername(),
-                        "/queue/battle/state",
-                        errorMsg
-                );
+                sendToUser(request.getFromUsername(), "/queue/battle/state", errorMsg);
                 return;
             }
-            
-            // 检查接收者是否在线
+
+            // 3. 检查接收者是否在线
             if (!onlineUserService.isUserOnline(request.getToUsername())) {
                 BattleStateMessage errorMsg = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.INVITE_REJECTED)
-                        .message("❌ 用户 " + request.getToUsername() + " 未在线")
+                        .message("用户 " + request.getToUsername() + " 未在线")
                         .build();
-                messagingTemplate.convertAndSendToUser(
-                        request.getFromUsername(),
-                        "/queue/battle/state",
-                        errorMsg
-                );
+                sendToUser(request.getFromUsername(), "/queue/battle/state", errorMsg);
                 return;
             }
-            
-            // 检查接收者是否在对战中
+
+            // 4. 检查接收者是否在对战中
             if (onlineUserService.isUserInBattle(request.getToUsername())) {
                 BattleStateMessage errorMsg = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.INVITE_REJECTED)
-                        .message("❌ 用户 " + request.getToUsername() + " 正在对战中")
+                        .message("用户 " + request.getToUsername() + " 正在对战中")
                         .build();
-                messagingTemplate.convertAndSendToUser(
-                        request.getFromUsername(),
-                        "/queue/battle/state",
-                        errorMsg
-                );
+                sendToUser(request.getFromUsername(), "/queue/battle/state", errorMsg);
                 return;
             }
 
-            // 创建房间，并设置游戏模式
+            // 5. 创建房间
             BattleRoom room = battleService.createInvite(
-                    request.getFromUsername(),
-                    request.getToUsername()
-            );
-            
-            // 设置游戏模式
+                    request.getFromUsername(), request.getToUsername());
+
+            // 6. 设置游戏模式并持久化
             if (request.getGameType() != null && !request.getGameType().isEmpty()) {
                 room.setGameType(request.getGameType());
-                battleRoomRepository.save(room);
             }
+            battleRoomRepository.save(room);
 
-            // 构建邀请消息
+            // 7. 缓存房间状态到 Redis
+            roomCacheService.cacheRoomState(room);
+
+            // 8. 构建并发送邀请消息
             BattleStateMessage message = BattleStateMessage.builder()
                     .type(BattleStateMessage.MessageType.INVITE)
                     .roomCode(room.getRoomCode())
@@ -121,62 +112,40 @@ public class BattleWebSocketController {
                     .message(request.getFromUsername() + " 邀请你进行对战")
                     .build();
 
-            // 发送邀请通知给被邀请者
-            messagingTemplate.convertAndSendToUser(
-                    request.getToUsername(),
-                    "/queue/battle/invite",
-                    message
-            );
-
+            sendToUser(request.getToUsername(), "/queue/battle/invite", message);
             log.info("邀请已发送，房间代码：{}", room.getRoomCode());
 
         } catch (Exception e) {
             log.error("发送邀请失败", e);
         }
-    }
-
-    /**
+}
+/**
      * 接受/拒绝邀请
-     * 客户端发送到：/app/battle/respond
      */
     @MessageMapping("/battle/respond")
     public void respondToInvite(@Payload BattleInviteResponse response) {
-        log.info("收到邀请响应：房间={}, 接受={}, 用户={}",
-                response.getRoomCode(), response.getAccepted(), response.getUsername());
+        log.info("收到邀请响应：房间={}, 接受={}", response.getRoomCode(), response.getAccepted());
 
         try {
             if (response.getAccepted()) {
-                log.info("开始处理接受邀请...");
-                
-                // 接受邀请
                 BattleRoom room = battleService.acceptInvite(
-                        response.getRoomCode(),
-                        response.getUsername()
-                );
-                log.info("邀请已接受，房间信息: playerA={}, playerB={}, questionId={}", 
-                        room.getPlayerA(), room.getPlayerB(), room.getCurrentQuestionId());
-                
-                // 标记双方进入对战
+                        response.getRoomCode(), response.getUsername());
+                log.info("邀请已接受: playerA={}, playerB={}", room.getPlayerA(), room.getPlayerB());
+
                 onlineUserService.enterBattle(room.getPlayerA(), room.getRoomCode());
                 onlineUserService.enterBattle(room.getPlayerB(), room.getRoomCode());
-                log.info("双方已标记进入对战状态");
 
-                // 获取题目信息
+                roomCacheService.cacheRoomState(room);
+
                 Question question = null;
                 QuestionResponse questionResp = null;
                 if (room.getCurrentQuestionId() != null) {
                     question = questionRepository.findByIdWithAuthor(room.getCurrentQuestionId()).orElse(null);
                     if (question != null) {
                         questionResp = convertToQuestionResponse(question);
-                        log.info("题目已获取: id={}, title={}", question.getId(), question.getTitle());
-                    } else {
-                        log.warn("题目不存在: id={}", room.getCurrentQuestionId());
                     }
-                } else {
-                    log.warn("房间没有设置题目ID");
                 }
 
-                // 构建游戏开始消息
                 BattleStateMessage message = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.GAME_START)
                         .roomCode(room.getRoomCode())
@@ -189,109 +158,72 @@ public class BattleWebSocketController {
                         .gameType(room.getGameType())
                         .message("对战开始！")
                         .build();
-                log.info("GAME_START消息已构建");
 
-                // 通知双方玩家
-                log.info("准备发送GAME_START消息给玩家A: {}", room.getPlayerA());
-                try {
-                    sendToUser(room.getPlayerA(), "/queue/battle/state", message);
-                    log.info("GAME_START消息已发送给玩家A: {}", room.getPlayerA());
-                } catch (Exception e) {
-                    log.error("发送给玩家A失败: {}", e.getMessage(), e);
-                }
-                
-                log.info("准备发送GAME_START消息给玩家B: {}", room.getPlayerB());
-                try {
-                    sendToUser(room.getPlayerB(), "/queue/battle/state", message);
-                    log.info("GAME_START消息已发送给玩家B: {}", room.getPlayerB());
-                } catch (Exception e) {
-                    log.error("发送给玩家B失败: {}", e.getMessage(), e);
-                }
-                
-                log.info("游戏开始通知处理完成: {} vs {}", room.getPlayerA(), room.getPlayerB());
+                sendToUser(room.getPlayerA(), "/queue/battle/state", message);
+                sendToUser(room.getPlayerB(), "/queue/battle/state", message);
+                log.info("游戏开始: {} vs {}", room.getPlayerA(), room.getPlayerB());
 
             } else {
-                // 拒绝邀请
                 BattleRoom room = battleService.getRoomByCode(response.getRoomCode());
                 battleService.rejectInvite(response.getRoomCode(), response.getUsername());
 
-                // 通知邀请者
                 BattleStateMessage message = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.INVITE_REJECTED)
                         .roomCode(response.getRoomCode())
                         .message(response.getUsername() + " 拒绝了你的邀请")
                         .build();
 
-                messagingTemplate.convertAndSendToUser(
-                        room.getPlayerA(),
-                        "/queue/battle/state",
-                        message
-                );
+                sendToUser(room.getPlayerA(), "/queue/battle/state", message);
             }
 
         } catch (Exception e) {
             log.error("处理邀请响应失败", e);
         }
     }
-    
-    /**
+/**
      * 退出对战
-     * 客户端发送到：/app/battle/quit
      */
     @MessageMapping("/battle/quit")
     public void quitBattle(@Payload BattleInviteRequest request) {
         String username = request.getFromUsername();
         log.info("用户请求退出对战: {}", username);
-        
+
         try {
-            // 获取用户所在房间
             String roomCode = onlineUserService.getUserRoomCode(username);
             if (roomCode == null) {
                 log.warn("用户 {} 不在任何对战中", username);
                 return;
             }
-            
+
             BattleRoom room = battleService.getRoomByCode(roomCode);
-            String opponentUsername = room.getPlayerA().equals(username) 
-                    ? room.getPlayerB() 
-                    : room.getPlayerA();
-            
-            // 清除双方对战状态
+            String opponentUsername = room.getPlayerA().equals(username)
+                    ? room.getPlayerB() : room.getPlayerA();
+
             onlineUserService.leaveBattle(room.getPlayerA());
             onlineUserService.leaveBattle(room.getPlayerB());
-            
-            // 设置房间状态为结束，退出者判负，并保存对战记录
-            // 使用Service层方法统一处理，确保事务一致性
+
             battleService.finishBattleAndSaveRecords(roomCode, opponentUsername);
-            
-            // 通知退出者
+
+            roomCacheService.evictRoom(roomCode, room.getPlayerA(), room.getPlayerB());
+
             BattleStateMessage quitMsg = BattleStateMessage.builder()
                     .type(BattleStateMessage.MessageType.GAME_OVER)
                     .roomCode(roomCode)
                     .message("你已退出对战")
                     .winner(opponentUsername)
                     .build();
-            messagingTemplate.convertAndSendToUser(
-                    username,
-                    "/queue/battle/state",
-                    quitMsg
-            );
-            
-            // 通知对手
+            sendToUser(username, "/queue/battle/state", quitMsg);
+
             BattleStateMessage opponentMsg = BattleStateMessage.builder()
                     .type(BattleStateMessage.MessageType.GAME_OVER)
                     .roomCode(roomCode)
                     .message(username + " 退出了对战，你获胜了！")
                     .winner(opponentUsername)
                     .build();
-            messagingTemplate.convertAndSendToUser(
-                    opponentUsername,
-                    "/queue/battle/state",
-                    opponentMsg
-            );
-            
+            sendToUser(opponentUsername, "/queue/battle/state", opponentMsg);
+
             log.info("对战已结束: 房间={}, 退出者={}, 获胜者={}", roomCode, username, opponentUsername);
-            
+
         } catch (Exception e) {
             log.error("退出对战失败", e);
         }
@@ -299,25 +231,29 @@ public class BattleWebSocketController {
 
     /**
      * 提交答案
-     * 客户端发送到：/app/battle/answer
      */
     @MessageMapping("/battle/answer")
     public void submitAnswer(@Payload BattleAnswerRequest request) {
         log.info("收到答案：房间={}, 用户={}", request.getRoomCode(), request.getUsername());
 
-        try {
-            // 保存答案
-            BattleRoom room = battleService.submitAnswer(
-                    request.getRoomCode(),
-                    request.getUsername(),
-                    request.getLongitude(),
-                    request.getLatitude()
-            );
+        // 获取分布式锁，防止并发提交导致重复结算
+        if (!roomCacheService.tryLockRoom(request.getRoomCode())) {
+            log.warn("房间被锁定，忽略重复提交: roomCode={}, user={}", request.getRoomCode(), request.getUsername());
+            return;
+        }
 
-            // 通知对方玩家已作答
+        try {
+            BattleRoom room = battleService.submitAnswer(
+                    request.getRoomCode(), request.getUsername(),
+                    request.getLongitude(), request.getLatitude());
+
+            // 缓存玩家答案到 Redis（回合级临时数据，TTL 60s）
+            String answerJson = String.format("{\"longitude\":%s,\"latitude\":%s}",
+                    request.getLongitude(), request.getLatitude());
+            roomCacheService.cachePlayerAnswer(request.getRoomCode(), request.getUsername(), answerJson);
+
             String otherPlayer = room.getPlayerA().equals(request.getUsername())
-                    ? room.getPlayerB()
-                    : room.getPlayerA();
+                    ? room.getPlayerB() : room.getPlayerA();
 
             BattleStateMessage answerNotice = BattleStateMessage.builder()
                     .type(BattleStateMessage.MessageType.PLAYER_ANSWERED)
@@ -325,40 +261,34 @@ public class BattleWebSocketController {
                     .playerAAnswered(room.getPlayerAAnswered())
                     .playerBAnswered(room.getPlayerBAnswered())
                     .message(request.getUsername() + " 已作答")
-                    .countdown(30) // 30秒倒计时
+                    .countdown(30)
                     .build();
 
-            messagingTemplate.convertAndSendToUser(
-                    otherPlayer,
-                    "/queue/battle/state",
-                    answerNotice
-            );
+            sendToUser(otherPlayer, "/queue/battle/state", answerNotice);
 
-            // 检查是否双方都已作答
+            roomCacheService.cacheRoomState(room);
+
             if (room.getPlayerAAnswered() && room.getPlayerBAnswered()) {
-                // 计算回合结果
                 handleRoundResult(room);
+            } else {
+                // 仅一方作答，释放锁让另一方提交
+                roomCacheService.unlockRoom(request.getRoomCode());
             }
 
         } catch (Exception e) {
             log.error("处理答案失败", e);
+            roomCacheService.unlockRoom(request.getRoomCode());
         }
     }
-
-    /**
+/**
      * 处理回合结果
      */
     private void handleRoundResult(BattleRoom room) {
         try {
-            // 计算结果
             BattleStateMessage.RoundResult result = battleService.calculateRoundResult(room);
-
-            // 刷新房间状态
             final BattleRoom updatedRoom = battleService.getRoomByCode(room.getRoomCode());
 
-            // 检查游戏是否结束
             if (battleService.isGameOver(updatedRoom)) {
-                // 游戏结束
                 BattleStateMessage gameOverMsg = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.GAME_OVER)
                         .roomCode(updatedRoom.getRoomCode())
@@ -372,23 +302,17 @@ public class BattleWebSocketController {
                         .message("游戏结束！获胜者：" + updatedRoom.getWinner())
                         .build();
 
-                messagingTemplate.convertAndSendToUser(
-                        updatedRoom.getPlayerA(),
-                        "/queue/battle/state",
-                        gameOverMsg
-                );
-                messagingTemplate.convertAndSendToUser(
-                        updatedRoom.getPlayerB(),
-                        "/queue/battle/state",
-                        gameOverMsg
-                );
-                
-                // 对战结束，清除对战状态
+                sendToUser(updatedRoom.getPlayerA(), "/queue/battle/state", gameOverMsg);
+                sendToUser(updatedRoom.getPlayerB(), "/queue/battle/state", gameOverMsg);
+
                 onlineUserService.leaveBattle(updatedRoom.getPlayerA());
                 onlineUserService.leaveBattle(updatedRoom.getPlayerB());
 
+                roomCacheService.evictRoom(updatedRoom.getRoomCode(),
+                        updatedRoom.getPlayerA(), updatedRoom.getPlayerB());
+                roomCacheService.unlockRoom(updatedRoom.getRoomCode());
+
             } else {
-                // 发送回合结果
                 BattleStateMessage roundResultMsg = BattleStateMessage.builder()
                         .type(BattleStateMessage.MessageType.ROUND_RESULT)
                         .roomCode(updatedRoom.getRoomCode())
@@ -400,18 +324,12 @@ public class BattleWebSocketController {
                         .message("第 " + updatedRoom.getCurrentRound() + " 回合结束")
                         .build();
 
-                messagingTemplate.convertAndSendToUser(
-                        updatedRoom.getPlayerA(),
-                        "/queue/battle/state",
-                        roundResultMsg
-                );
-                messagingTemplate.convertAndSendToUser(
-                        updatedRoom.getPlayerB(),
-                        "/queue/battle/state",
-                        roundResultMsg
-                );
+                sendToUser(updatedRoom.getPlayerA(), "/queue/battle/state", roundResultMsg);
+                sendToUser(updatedRoom.getPlayerB(), "/queue/battle/state", roundResultMsg);
 
-                // 延迟3秒后开始新回合
+                roomCacheService.cacheRoomState(updatedRoom);
+                roomCacheService.unlockRoom(updatedRoom.getRoomCode());
+
                 new Thread(() -> {
                     try {
                         Thread.sleep(3000);
@@ -426,20 +344,22 @@ public class BattleWebSocketController {
             log.error("处理回合结果失败", e);
         }
     }
-
-    /**
+/**
      * 开始新回合
      */
     private void startNextRound(String roomCode) {
         try {
             BattleRoom room = battleService.startNewRound(roomCode);
 
-            // 获取新题目（使用fetch查询避免懒加载问题）
+            // 清除上一回合的玩家答案缓存
+            roomCacheService.clearPlayerAnswers(roomCode, room.getPlayerA(), room.getPlayerB());
+
+            roomCacheService.cacheRoomState(room);
+
             Question question = questionRepository.findByIdWithAuthor(room.getCurrentQuestionId())
                     .orElseThrow();
             QuestionResponse questionResp = convertToQuestionResponse(question);
 
-            // 通知双方新回合开始
             BattleStateMessage newRoundMsg = BattleStateMessage.builder()
                     .type(BattleStateMessage.MessageType.NEW_QUESTION)
                     .roomCode(room.getRoomCode())
@@ -452,24 +372,18 @@ public class BattleWebSocketController {
                     .message("第 " + room.getCurrentRound() + " 回合开始")
                     .build();
 
-            messagingTemplate.convertAndSendToUser(
-                    room.getPlayerA(),
-                    "/queue/battle/state",
-                    newRoundMsg
-            );
-            messagingTemplate.convertAndSendToUser(
-                    room.getPlayerB(),
-                    "/queue/battle/state",
-                    newRoundMsg
-            );
+            sendToUser(room.getPlayerA(), "/queue/battle/state", newRoundMsg);
+            sendToUser(room.getPlayerB(), "/queue/battle/state", newRoundMsg);
 
         } catch (Exception e) {
             log.error("开始新回合失败", e);
         }
     }
 
+    // ==================== 工具方法 ====================
+
     /**
-     * 转换Question为QuestionResponse
+     * 转换 Question 实体为 QuestionResponse DTO
      */
     private QuestionResponse convertToQuestionResponse(Question question) {
         QuestionResponse response = new QuestionResponse();
@@ -480,8 +394,7 @@ public class BattleWebSocketController {
         response.setCreatedAt(question.getCreatedAt());
         response.setCampus(question.getCampus());
         response.setDifficulty(question.getDifficulty());
-        
-        // 设置作者信息（处理懒加载问题）
+
         try {
             if (question.getAuthor() != null && org.hibernate.Hibernate.isInitialized(question.getAuthor())) {
                 response.setAuthorId(question.getAuthor().getId());
@@ -490,33 +403,41 @@ public class BattleWebSocketController {
         } catch (Exception e) {
             log.warn("无法加载题目作者信息: {}", e.getMessage());
         }
-        
-        // 设置正确坐标
+
         if (question.getCorrectLon() != null && question.getCorrectLat() != null) {
             QuestionResponse.CorrectCoord coord = new QuestionResponse.CorrectCoord();
             coord.setLon(question.getCorrectLon());
             coord.setLat(question.getCorrectLat());
             response.setCorrectCoord(coord);
         }
-        
+
         return response;
     }
-    
+
     /**
-     * 发送消息给用户（带诊断日志）
+     * 安全发送消息给指定用户
      */
-    private void sendToUser(String username, String destination, Object message) {
-        // 检查用户是否在SimpUserRegistry中注册
-        SimpUser simpUser = simpUserRegistry.getUser(username);
-        if (simpUser == null) {
-            log.warn("⚠️ 用户 {} 未在SimpUserRegistry中注册! 已注册用户: {}", 
-                    username, 
-                    simpUserRegistry.getUsers().stream().map(SimpUser::getName).toList());
-        } else {
-            log.info("✅ 用户 {} 已注册，会话数: {}", username, simpUser.getSessions().size());
+    private void sendToUser(String username, String destination, Object payload) {
+        try {
+            messagingTemplate.convertAndSendToUser(username, destination, payload);
+        } catch (Exception e) {
+            log.error("发送消息失败: user={}, dest={}", username, destination, e);
         }
-        
-        messagingTemplate.convertAndSendToUser(username, destination, message);
-        log.info("消息已发送给用户 {}: destination={}", username, destination);
+    }
+
+    /**
+     * 获取在线用户数（调试用）
+     */
+    @MessageMapping("/battle/onlineCount")
+    public void getOnlineUserCount() {
+        try {
+            int count = simpUserRegistry.getUserCount();
+            java.util.Set<String> usernames = simpUserRegistry.getUsers().stream()
+                    .map(SimpUser::getName)
+                    .collect(java.util.stream.Collectors.toSet());
+            log.info("在线用户数: {}, 用户: {}", count, usernames);
+        } catch (Exception e) {
+            log.error("获取在线用户数失败", e);
+        }
     }
 }
