@@ -38,6 +38,21 @@ spring:
     time-zone: GMT+8
     date-format: yyyy-MM-dd HH:mm:ss
 
+# ==================== 部署模式 ====================
+# broker.type: simple  → 单机 SimpleBroker（开发/单实例）
+# broker.type: external → 外部 STOMP Broker（集群/多实例，需 RabbitMQ）
+broker:
+  type: simple
+  relay-host: localhost
+  relay-port: 61613
+  relay-login: guest
+  relay-passcode: guest
+
+# online-user.store: redis → Redis 共享状态（集群/多实例）
+# online-user.store: memory → 内存状态（单机回退）
+online-user:
+  store: redis
+
 jwt:
   secret: 89a7b2f8-9c4d-4e8a-9f7b-8d6c7a89b0e189a7b2f8-9c4d-4e8a-9f7b-8d6c7a89b0e189a7b2f8-9c4d-4e8a-9f7b-8d6c7a89b0e1
   expiration: 86400000 # 24小时

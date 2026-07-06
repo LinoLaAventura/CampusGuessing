@@ -63,6 +63,9 @@ public final class RedisKeyConstants {
         public static final String PLAYER_B_ANSWERED = "playerBAnswered";
         public static final String STATUS = "status";
         public static final String WINNER = "winner";
+        public static final String PLAYER_A_ANSWER = "playerAAnswer";
+        public static final String PLAYER_B_ANSWER = "playerBAnswer";
+        public static final String ROUND_HISTORY_JSON = "roundHistoryJson";
         public static final String GAME_TYPE = "gameType";
     }
 

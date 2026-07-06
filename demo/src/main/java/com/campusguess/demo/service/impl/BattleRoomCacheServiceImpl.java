@@ -131,6 +131,12 @@ public class BattleRoomCacheServiceImpl implements BattleRoomCacheService {
         map.put(RedisKeyConstants.RoomFields.CURRENT_ROUND, String.valueOf(room.getCurrentRound()));
         map.put(RedisKeyConstants.RoomFields.PLAYER_A_ANSWERED, String.valueOf(room.getPlayerAAnswered()));
         map.put(RedisKeyConstants.RoomFields.PLAYER_B_ANSWERED, String.valueOf(room.getPlayerBAnswered()));
+        map.put(RedisKeyConstants.RoomFields.PLAYER_A_ANSWER,
+                room.getPlayerAAnswer() != null ? room.getPlayerAAnswer() : "");
+        map.put(RedisKeyConstants.RoomFields.PLAYER_B_ANSWER,
+                room.getPlayerBAnswer() != null ? room.getPlayerBAnswer() : "");
+        map.put(RedisKeyConstants.RoomFields.ROUND_HISTORY_JSON,
+                room.getRoundHistoryJson() != null ? room.getRoundHistoryJson() : "");
         map.put(RedisKeyConstants.RoomFields.STATUS, room.getStatus().name());
         map.put(RedisKeyConstants.RoomFields.WINNER, room.getWinner() != null ? room.getWinner() : "");
         map.put(RedisKeyConstants.RoomFields.GAME_TYPE, room.getGameType() != null ? room.getGameType() : "好友对战");
@@ -148,6 +154,9 @@ public class BattleRoomCacheServiceImpl implements BattleRoomCacheService {
         room.setCurrentRound(getInt(entries, RedisKeyConstants.RoomFields.CURRENT_ROUND, 1));
         room.setPlayerAAnswered(getBool(entries, RedisKeyConstants.RoomFields.PLAYER_A_ANSWERED));
         room.setPlayerBAnswered(getBool(entries, RedisKeyConstants.RoomFields.PLAYER_B_ANSWERED));
+        room.setPlayerAAnswer(getStr(entries, RedisKeyConstants.RoomFields.PLAYER_A_ANSWER));
+        room.setPlayerBAnswer(getStr(entries, RedisKeyConstants.RoomFields.PLAYER_B_ANSWER));
+        room.setRoundHistoryJson(getStr(entries, RedisKeyConstants.RoomFields.ROUND_HISTORY_JSON));
         String statusStr = getStr(entries, RedisKeyConstants.RoomFields.STATUS);
         if (statusStr != null) {
             room.setStatus(BattleRoom.BattleStatus.valueOf(statusStr));
