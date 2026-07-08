@@ -1,0 +1,26 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: campus-question-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/campusguesssystem?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: root
+    password: 134679*Abc
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+
+image:
+  host:
+    url: https://picui.cn/api/v1
+    token: Bearer 2083|KEIbu81Xhll4EprEN0pVGJb02R9dGNYlWKHYpsYr
